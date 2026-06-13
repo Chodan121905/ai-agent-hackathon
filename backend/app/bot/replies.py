@@ -18,6 +18,26 @@ _L = {
     "ta": {"scam": "மோசடி", "safe": "பாதுகாப்பு", "sure": "உறுதி", "tactics": "தந்திரங்கள்"},
 }
 
+# Canonical tactic keys → localized labels.
+_TACTICS = {
+    "urgency": {"en": "Urgency", "zh": "制造紧迫", "ms": "Mendesak", "ta": "அவசரம்"},
+    "authority_impersonation": {"en": "Impersonating authority", "zh": "冒充权威机构", "ms": "Menyamar pihak berkuasa", "ta": "அதிகாரப் போலி"},
+    "threat_fear": {"en": "Threats / fear", "zh": "威胁恐吓", "ms": "Ancaman / takut", "ta": "அச்சுறுத்தல்"},
+    "secrecy": {"en": "Secrecy", "zh": "要求保密", "ms": "Kerahsiaan", "ta": "இரகசியம்"},
+    "unusual_payment": {"en": "Unusual payment", "zh": "异常付款要求", "ms": "Bayaran luar biasa", "ta": "வழக்கமற்ற கட்டணம்"},
+    "credential_request": {"en": "Asks for password/OTP", "zh": "索取密码/验证码", "ms": "Minta kata laluan/OTP", "ta": "கடவுச்சொல்/OTP கோரிக்கை"},
+    "too_good_to_be_true": {"en": "Too good to be true", "zh": "天上掉馅饼", "ms": "Terlalu indah", "ta": "நம்ப முடியாத சலுகை"},
+    "sender_link_mismatch": {"en": "Fake sender / link", "zh": "发件人/链接造假", "ms": "Pengirim/pautan palsu", "ta": "போலி அனுப்புநர்/இணைப்பு"},
+    "emotional_leverage": {"en": "Emotional manipulation", "zh": "情感操控", "ms": "Manipulasi emosi", "ta": "உணர்ச்சி சூழ்ச்சி"},
+}
+
+
+def _tactic_label(key: str, lang: str) -> str:
+    entry = _TACTICS.get((key or "").strip().lower())
+    if entry:
+        return entry.get(lang) or entry["en"]
+    return (key or "").replace("_", " ").strip()  # fallback for any unexpected value
+
 
 def _norm(langs: list[str] | None) -> list[str]:
     out = [l for l in (langs or []) if l in _L]
@@ -42,7 +62,9 @@ def format_verdict(v: Verdict, langs: list[str] | None = None) -> str:
     lines = [f"{light} {header}"]
 
     if v.tactics:
-        lines.append("🧠 " + "/".join(_L[l]["tactics"] for l in langs) + ": " + " · ".join(v.tactics))
+        label = "/".join(_L[l]["tactics"] for l in langs)
+        chips = " · ".join(_tactic_label(t, langs[0]) for t in v.tactics)
+        lines.append(f"🧠 {label}: {chips}")
 
     lines.append("")
     for l in langs:
@@ -53,10 +75,6 @@ def format_verdict(v: Verdict, langs: list[str] | None = None) -> str:
         a = _act(v, l)
         if a:
             lines.append(f"✅ {a}")
-
-    if v.sender_analysis and v.sender_analysis.reasons:
-        lines.append("")
-        lines.append("📧 " + v.sender_analysis.reasons[0])
 
     return "\n".join(lines).strip()
 

@@ -74,6 +74,10 @@ Rules:
 - If unsure, lean to "medium" and tell them to check with family or call the official number
   on the back of their bank card.
 - confidence is 0..1 (how sure you are of the verdict).
+- tactics MUST be chosen ONLY from these exact keys (snake_case, English keys — they are
+  translated for display): urgency, authority_impersonation, threat_fear, secrecy,
+  unusual_payment, credential_request, too_good_to_be_true, sender_link_mismatch,
+  emotional_leverage. Output [] if none. Do NOT invent other tactic strings.
 - alert_family is true only when risk_level == "high".
 - set input_language to the detected language of the original input (en|zh|ms|ta|other).
 """

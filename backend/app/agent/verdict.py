@@ -40,7 +40,14 @@ class Verdict(BaseModel):
     risk_level: Literal["high", "medium", "low"]
     is_scam: bool
     confidence: float = Field(ge=0, le=1, description="0..1; shown to the user as a %")
-    tactics: list[str] = Field(default_factory=list, description="named tactics; [] if none")
+    tactics: list[str] = Field(
+        default_factory=list,
+        description=(
+            "tactic keys (translated for display) from: urgency, authority_impersonation, "
+            "threat_fear, secrecy, unusual_payment, credential_request, too_good_to_be_true, "
+            "sender_link_mismatch, emotional_leverage; [] if none"
+        ),
+    )
     scam_category: Optional[str] = Field(
         default=None,
         description="bank_impersonation | govt_official | phishing | lottery | romance | job | other",
