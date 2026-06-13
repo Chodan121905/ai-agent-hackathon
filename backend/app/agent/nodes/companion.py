@@ -34,6 +34,7 @@ async def run(state: dict) -> dict:
         }
 
     memory = state.get("memory") or "(no memory yet — this may be a new person)"
+    recent_checks = state.get("recent_checks") or "(no scam checks yet)"
     who = (state.get("source") or {}).get("who") or "friend"
     pref = state.get("pref_languages") or settings.default_languages
     active = (pref[0] if pref else "en")
@@ -41,6 +42,9 @@ async def run(state: dict) -> dict:
     user = (
         f"PERSON: {who}\nACTIVE REPLY LANGUAGE: {lang_name} — reply ONLY in this language.\n\n"
         f"MEMORY.md:\n{memory}\n\n"
+        f"RECENT SCAM CHECKS you did for them (most recent last) — use these to answer "
+        f"follow-up questions like 'what if it's real?', 'why is it a scam?', 'what should I do?':\n"
+        f"{recent_checks}\n\n"
         f"THEIR MESSAGE:\n{text}\n\n"
         "Respond as their companion, then return the JSON object."
     )

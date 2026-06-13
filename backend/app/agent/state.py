@@ -25,6 +25,7 @@ class GraphState(TypedDict, total=False):
     raw_text: str                     # text / email body / caption
     image_bytes: Optional[bytes]
     audio_path: Optional[str]
+    audio_failed: Optional[bool]      # a voice note arrived but could not be transcribed
     urls: list[str]
     email_headers: Optional[dict]     # From, Reply-To, Return-Path, Authentication-Results
     modality: Modality
@@ -35,6 +36,7 @@ class GraphState(TypedDict, total=False):
     note: Optional[str]               # confirmation text for set_language / help
     person_key: Optional[str]         # who this is (telegram user id), for memory
     memory: Optional[str]             # the person's memory.md (loaded before invoke)
+    recent_checks: Optional[str]      # recent scam analyses done for this person (for follow-ups)
     chat_reply: Optional[str]         # companion reply (chat intent)
     memory_out: Optional[str]         # updated memory.md to persist (chat intent)
     extracted_text: Annotated[list[str], _concat]

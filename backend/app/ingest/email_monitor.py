@@ -164,12 +164,15 @@ async def _handle_email(bot, session, m: dict) -> None:
             pass
 
     # 2) Run the agent (bot=None → no auto-alert; we drive the messaging here).
+    elder_key = str(elder.telegram_user_id) if elder and elder.telegram_user_id else None
     result = await check_service.run_check(
         session=session,
         bot=None,
         source=source,
         raw_text=m["body"],
         email_headers=m["headers"],
+        user=elder,
+        person_key=elder_key,  # log the analysis to the elder's memory for follow-ups
         progress=progress if status is not None else None,
     )
     v = result.get("verdict")

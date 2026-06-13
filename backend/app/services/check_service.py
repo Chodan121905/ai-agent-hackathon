@@ -12,8 +12,16 @@ from collections.abc import Awaitable, Callable
 
 from app.agent.graph import get_graph
 from app.agent.verdict import Verdict
+from app.core.config import settings
 from app.models.tables import Report
 from app.services import alert_service, member_service, memory_store
+
+_AUDIO_FAILED = {
+    "en": "🎧 Sorry, I couldn't understand that voice message. Please try again, or type it out.",
+    "zh": "🎧 抱歉，我没听清这条语音，请再说一次，或直接打字给我。",
+    "ms": "🎧 Maaf, saya tidak faham mesej suara itu. Cuba lagi atau taipkannya.",
+    "ta": "🎧 மன்னிக்கவும், அந்தக் குரல் செய்தியை என்னால் புரிந்துகொள்ள முடியவில்லை. மீண்டும் முயற்சிக்கவும் அல்லது தட்டச்சு செய்யவும்.",
+}
 
 
 async def run_check(
@@ -43,6 +51,7 @@ async def run_check(
     if person_key is not None:
         state["person_key"] = person_key
         state["memory"] = memory_store.load(person_key)
+        state["recent_checks"] = memory_store.load_checks(person_key)
 
     # Stream node-by-node so the caller can report progress; accumulate the final state.
     final: dict = {}
@@ -52,6 +61,11 @@ async def run_check(
                 await progress(node)
             if payload:
                 final.update(payload)
+
+    # A voice note we couldn't transcribe → ask to retry, don't run a check on nothing.
+    if final.get("audio_failed") and not (final.get("raw_text") or "").strip():
+        active = (member_service.langs_of(user) if user else settings.default_languages)[0]
+        return {"intent": "chat", "reply": _AUDIO_FAILED.get(active, _AUDIO_FAILED["en"])}
 
     # A natural-language language change short-circuits scam analysis.
     if final.get("intent") == "set_language":
@@ -94,8 +108,32 @@ async def run_check(
     await session.commit()
     await session.refresh(report)
 
+    # Record this analysis in the person's memory so the companion can answer follow-ups.
+    if person_key is not None:
+        memory_store.append_check(person_key, _check_summary(verdict, source, raw_text))
+
     alerted = 0
     if bot is not None and await alert_service.should_alert(verdict):
         alerted = await alert_service.alert(session, bot, verdict, source, report)
 
     return {"intent": "check", "verdict": verdict, "report_id": report.id, "alerted": alerted}
+
+
+def _check_summary(verdict: Verdict, source: dict, raw_text: str) -> str:
+    pct = round(verdict.confidence * 100)
+    what = source.get("subject") or (raw_text or "").strip().replace("\n", " ")[:70] or "(no text)"
+    sender = source.get("sender_raw") or (verdict.sender_analysis.from_address if verdict.sender_analysis else None)
+    label = "SCAM" if verdict.is_scam else "likely safe"
+    parts = [
+        f"- [{label} {verdict.risk_level} {pct}%]",
+        f'"{what}"',
+    ]
+    if sender:
+        parts.append(f"from {sender}")
+    if verdict.scam_category:
+        parts.append(f"({verdict.scam_category})")
+    if verdict.tactics:
+        parts.append("tactics: " + ", ".join(verdict.tactics))
+    # a short why, in English, for the companion to paraphrase in the active language
+    parts.append("— " + (verdict.explanation_en or "")[:160])
+    return " ".join(parts)

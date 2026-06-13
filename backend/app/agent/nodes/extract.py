@@ -41,7 +41,9 @@ async def transcribe(state: dict) -> dict:
     if not text:
         text = await whisper_stt.transcribe(path)
     if not text:
-        return {}
+        # couldn't understand the audio (or no STT installed) — flag it so we don't run a
+        # scam check on empty content and return a bogus "nothing to review" verdict
+        return {"audio_failed": True}
     # the transcript IS the message — feed it as raw_text so intent + synthesize see it
     return {"raw_text": text}
 
