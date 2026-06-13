@@ -646,7 +646,10 @@ Prereqs: Python 3.12+, **ffmpeg** on PATH (voice), the real Telegram bot token, 
 - Verification = shared **access code** + admin approve/revoke. Email alert fires on `is_scam and risk_level=="high"` (configurable via `ALERT_THRESHOLD`); recipients = the elder's active guardians.
 - No frontend code this phase — contract + stubs + codegen only.
 
-**Need confirmation:**
-- Should the **elder also** get a Telegram message on a scam email, or **family only**?
-- Bilingual = **English + Simplified Chinese** assumed (not Traditional). OK?
-- Sponsor scope: keep all six (tiered, with fallbacks) or trim to the core three?
+**Confirmed decisions (locked 2026-06-13):**
+- **Scam email alerts go to family AND the elder** (`ALERT_ELDER_TOO=true`).
+- Bilingual = **English + Simplified Chinese (简体中文)** (`CHINESE_VARIANT=simplified`).
+- Sponsor scope: **all six wired** (Kimi load-bearing; Bright Data / SenseNova / Daytona /
+  VideoDB / TokenRouter behind real clients with built-in fallbacks, so the app boots and
+  runs even with no sponsor keys but Kimi).
+- Build scope: **full M0–M10** implemented in `backend/`.
