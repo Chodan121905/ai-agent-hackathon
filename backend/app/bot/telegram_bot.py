@@ -34,6 +34,16 @@ _NOT_AUTHORIZED = (
     "🔒 尚未授权。请输入访问码：/verify <代码>"
 )
 
+# Live progress shown while a slow check runs (status message is edited in place).
+_PROGRESS_STEPS = {
+    "ocr": "✅ Read the text in your image…",
+    "transcribe": "✅ Transcribed your voice note…",
+    "link_intel": "✅ Opened the link safely & checked the domain…",
+    "analyze": "🧠 Analysing the content for scam tactics…",
+    "verify": "🔬 Verifying the sender & links…",
+    "synthesize": "✍️ Writing your verdict…",
+}
+
 
 # ───────────────────────── verification gate (runs first) ─────────────────────────
 async def _gate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -206,8 +216,26 @@ async def _on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await f.download_to_drive(custom_path=str(tmp))
         audio_path = str(tmp)
 
+    heavy = bool(image_bytes or audio_path or urls)
     await context.bot.send_chat_action(chat_id=msg.chat_id, action="typing")
 
+    status = {"msg": None}
+    if heavy:
+        status["msg"] = await msg.reply_text("🔎 On it — checking this for you…")
+
+    async def progress(node: str) -> None:
+        label = _PROGRESS_STEPS.get(node)
+        if not label:
+            return
+        try:
+            if status["msg"] is None:
+                status["msg"] = await msg.reply_text(label)
+            else:
+                await status["msg"].edit_text(label)
+        except Exception:
+            pass
+
+    langs = ["en", "zh"]
     try:
         async with async_session_factory() as session:
             user = await member_service.get_or_create_telegram_user(
@@ -222,6 +250,8 @@ async def _on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 audio_path=audio_path,
                 urls=urls or None,
                 user=user,
+                person_key=str(tg_user.id),
+                progress=progress,
             )
             langs = member_service.langs_of(user)
     finally:
@@ -231,14 +261,23 @@ async def _on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             except Exception:
                 pass
 
-    if result.get("intent") == "set_language":
-        await msg.reply_text(result.get("message") or "✅ Done.")
-        return
+    intent = result.get("intent")
+    if intent == "set_language":
+        final_text = result.get("message") or "✅ Done."
+    elif intent == "chat":
+        final_text = result.get("reply") or "🙂"
+    else:
+        final_text = format_verdict(result["verdict"], langs)
+        if result.get("alerted"):
+            final_text += f"\n\n📣 Alerted {result['alerted']} family member(s)."
 
-    reply = format_verdict(result["verdict"], langs)
-    if result.get("alerted"):
-        reply += f"\n\n📣 Alerted {result['alerted']} family member(s)."
-    await msg.reply_text(reply)
+    if status["msg"] is not None:
+        try:
+            await status["msg"].edit_text(final_text)
+        except Exception:
+            await msg.reply_text(final_text)
+    else:
+        await msg.reply_text(final_text)
 
 
 # ───────────────────────── build ─────────────────────────

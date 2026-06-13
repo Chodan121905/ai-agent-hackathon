@@ -12,7 +12,7 @@ from functools import lru_cache
 
 from langgraph.graph import END, START, StateGraph
 
-from app.agent.nodes import analyze, extract, intake, intent, synthesize, verify
+from app.agent.nodes import analyze, companion, extract, intake, intent, synthesize, verify
 from app.agent.state import GraphState
 
 
@@ -25,6 +25,7 @@ def build_graph():
     g.add_node("link_intel", extract.link_intel)
     g.add_node("intent", intent.run)
     g.add_node("set_language", intent.set_language)
+    g.add_node("chat", companion.run)
     g.add_node("analyze", analyze.run)
     g.add_node("verify", verify.run)
     g.add_node("synthesize", synthesize.run)
@@ -40,16 +41,22 @@ def build_graph():
     for n in ("ocr", "transcribe", "link_intel"):
         g.add_edge(n, "intent")
 
-    # a language request short-circuits to set_language; otherwise fan out to the swarm
+    # language request → set_language; casual talk → chat; otherwise fan out to the swarm
     def route_intent(state: dict):
-        return "set_language" if state.get("intent") == "set_language" else ["analyze", "verify"]
+        i = state.get("intent")
+        if i == "set_language":
+            return "set_language"
+        if i in ("chat", "help"):
+            return "chat"
+        return ["analyze", "verify"]
 
     g.add_conditional_edges(
         "intent",
         route_intent,
-        {"set_language": "set_language", "analyze": "analyze", "verify": "verify"},
+        {"set_language": "set_language", "chat": "chat", "analyze": "analyze", "verify": "verify"},
     )
     g.add_edge("set_language", END)
+    g.add_edge("chat", END)
 
     g.add_edge("analyze", "synthesize")
     g.add_edge("verify", "synthesize")

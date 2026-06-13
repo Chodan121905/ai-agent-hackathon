@@ -58,6 +58,10 @@ async def run(state: dict) -> dict:
     if src.get("channel") == "email":
         return {"intent": "check"}  # autonomous channel never issues commands
 
+    # Anything with a link or a screenshot is always a scam-check, never casual chat.
+    if state.get("urls") or state.get("modality") == "image":
+        return {"intent": "check"}
+
     text = resolved_text(state)
     if not text:
         return {"intent": "check"}
@@ -75,7 +79,9 @@ async def run(state: dict) -> dict:
             intent = data.get("intent", "check")
             if intent == "set_language":
                 return {"intent": "set_language", "requested_languages": _normalize_langs(data.get("languages"))}
-            return {"intent": intent}
+            if intent in ("chat", "help", "check"):
+                return {"intent": intent}
+            return {"intent": "check"}
         except Exception:
             pass
     return _heuristic(text)

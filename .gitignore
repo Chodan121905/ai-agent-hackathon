@@ -43,6 +43,9 @@ htmlcov/
 *.sqlite3
 *.db
 
+# Per-person companion memory (personal data)
+backend/memory/
+
 # ───────────────────────── Node / web frontend ─────────────────────────
 node_modules/
 .next/
