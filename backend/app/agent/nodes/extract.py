@@ -35,11 +35,13 @@ async def transcribe(state: dict) -> dict:
     path = state.get("audio_path")
     if not path:
         return {}
-    text = ""
-    if settings.STT_PROVIDER == "videodb":
-        text = await videodb_stt.transcribe(path)
-    if not text:
+    # Use ONLY the configured provider — no cross-fallback. (faster-whisper/ctranslate2
+    # segfaults on CPUs without the required instruction set, which would crash the whole
+    # process, so we never call it unless it is explicitly selected.)
+    if settings.STT_PROVIDER == "whisper":
         text = await whisper_stt.transcribe(path)
+    else:
+        text = await videodb_stt.transcribe(path)
     if not text:
         # couldn't understand the audio (or no STT installed) — flag it so we don't run a
         # scam check on empty content and return a bogus "nothing to review" verdict

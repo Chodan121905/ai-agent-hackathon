@@ -24,12 +24,13 @@ dependencies = [
     "beautifulsoup4>=4.12",
     "tldextract>=5.1",
     "idna>=3.7",
+    "videodb>=0.2",
 ]
 
 [project.optional-dependencies]
 # Install on demand: `pip install -e ".[stt]"` etc. Kept optional so the core boots fast.
+# faster-whisper is local STT; only works on CPUs with the required instruction set (AVX).
 stt = ["faster-whisper>=1.0"]
-videodb = ["videodb>=0.2"]
 daytona = ["daytona>=0.30"]
 dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.5"]
 

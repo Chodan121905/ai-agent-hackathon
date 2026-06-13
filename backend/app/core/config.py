@@ -78,7 +78,7 @@ class Settings(BaseSettings):
     DAYTONA_API_KEY: str = ""
 
     # --- STT ---
-    STT_PROVIDER: str = "whisper"  # whisper | videodb
+    STT_PROVIDER: str = "videodb"  # videodb (cloud, robust) | whisper (local; needs AVX CPU)
     WHISPER_MODEL: str = "base"
 
     # ----- derived helpers -----
