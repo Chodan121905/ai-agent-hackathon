@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     LLM_API_KEY: str = ""
     LLM_MODEL_BRAIN: str = "kimi-k2.6"
     LLM_MODEL_TRIAGE: str = "kimi-k2.6"
+    LLM_TEMPERATURE: float = 1.0  # kimi-k2.6 requires 1; lower values 400 on this model
     DEFAULT_LANGUAGES: str = "en,zh"
     CHINESE_VARIANT: str = "simplified"  # simplified | traditional
 

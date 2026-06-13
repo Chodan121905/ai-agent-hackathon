@@ -7,13 +7,17 @@ from app.core.config import settings
 
 
 def make_llm(role: str = "brain") -> ChatOpenAI:
-    """role: 'brain' (synthesize/analyze) | 'triage' (cheap intent classification)."""
+    """role: 'brain' (synthesize/analyze) | 'triage' (cheap intent classification).
+
+    Note: kimi-k2.6 (thinking model) only accepts temperature=1; lower values are rejected
+    with a 400. Configurable via LLM_TEMPERATURE if you point at a model that allows others.
+    """
     model = settings.LLM_MODEL_TRIAGE if role == "triage" else settings.LLM_MODEL_BRAIN
     return ChatOpenAI(
         model=model,
         base_url=settings.LLM_BASE_URL,
         api_key=settings.LLM_API_KEY or "missing",
-        temperature=0,
+        temperature=settings.LLM_TEMPERATURE,
         timeout=60,
         max_retries=2,
     )
