@@ -10,13 +10,16 @@ companion AND a scam-protection helper. Return ONLY JSON: {"intent": "...", "lan
 intent is one of:
 - "set_language": asking, in ANY language (typed or transcribed), to change the reply language.
   Examples: "reply in Chinese only", "用英文回答", "speak Malay", "both please".
-- "check": they want something assessed for scam risk — they shared or described a suspicious
-  message, call, link, email, prize, refund, OTP/password request, or asked "is this a scam/real?".
-- "chat": ordinary conversation — greetings, small talk, feelings, or a general question or
-  request for help/advice that is NOT about a specific suspicious item.
+- "check": ONLY when THIS message itself contains or quotes a specific suspicious item to
+  inspect — a pasted/forwarded message or link, a described offer/call/prize/refund, or a
+  request for money/OTP/password — or clearly asks you to verify such a specific item.
+- "chat": ordinary conversation, reactions, opinions, and general questions or advice —
+  INCLUDING follow-up questions about a previous message, e.g. "what if it's real?",
+  "what should I do?", "is that dangerous?", "ok thanks". The companion can give scam advice here.
 - "help": asking how to use this assistant.
 
-When unsure between "chat" and "check", prefer "check" if anything sounds suspicious; else "chat".
+Default to "chat" for short conversational messages. Choose "check" only when there is a
+concrete item to analyze in THIS message — not for general questions or reactions.
 languages: for "set_language", codes from {en, zh, ms, ta}; "both" means ["en","zh"]. Empty otherwise.
 Output nothing except the JSON object.
 """

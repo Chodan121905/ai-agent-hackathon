@@ -8,6 +8,7 @@ The same process runs both.
 """
 from __future__ import annotations
 
+import asyncio
 import tempfile
 from pathlib import Path
 
@@ -237,25 +238,34 @@ async def _on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         except Exception:
             pass
 
-    langs = ["en", "zh"]
+    langs = ["en"]
+    result: dict = {"intent": "error"}
     try:
         async with async_session_factory() as session:
             user = await member_service.get_or_create_telegram_user(
                 session, tg_user.id, msg.chat_id, tg_user.full_name
             )
-            result = await check_service.run_check(
-                session=session,
-                bot=context.bot,
-                source={"channel": "telegram", "telegram_user_id": tg_user.id, "who": tg_user.full_name},
-                raw_text=text,
-                image_bytes=image_bytes,
-                audio_path=audio_path,
-                urls=urls or None,
-                user=user,
-                person_key=str(tg_user.id),
-                progress=progress,
-            )
             langs = member_service.langs_of(user)
+            # hard timeout so a slow/hung backend can never leave the user stuck
+            result = await asyncio.wait_for(
+                check_service.run_check(
+                    session=session,
+                    bot=context.bot,
+                    source={"channel": "telegram", "telegram_user_id": tg_user.id, "who": tg_user.full_name},
+                    raw_text=text,
+                    image_bytes=image_bytes,
+                    audio_path=audio_path,
+                    urls=urls or None,
+                    user=user,
+                    person_key=str(tg_user.id),
+                    progress=progress,
+                ),
+                timeout=90,
+            )
+    except asyncio.TimeoutError:
+        result = {"intent": "error"}
+    except Exception:
+        result = {"intent": "error"}
     finally:
         if audio_path:
             try:
@@ -264,7 +274,9 @@ async def _on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 pass
 
     intent = result.get("intent")
-    if intent == "set_language":
+    if intent == "error":
+        final_text = "⚠️ Sorry, that took too long or hit an error. Please try again.\n⚠️ 抱歉，处理超时或出错，请重试。"
+    elif intent == "set_language":
         final_text = result.get("message") or "✅ Done."
     elif intent == "chat":
         final_text = result.get("reply") or "🙂"
