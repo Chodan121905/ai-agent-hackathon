@@ -394,8 +394,9 @@ risk). Never auto-open links except inside Daytona/Bright Data.
 ### Whisper — primary STT · confidence: high
 - `faster-whisper` (local). Handles OGG/Opus and **all four** languages in one model.
 
-### Daytona — safe link sandbox · 🟡 (optional) · confidence: high
-- `pip install daytona`; `create() → sandbox.process.exec("curl -sSIL …") → delete()` in `finally`. ~$200 starter + hackathon credits. General sandbox, not a verdict.
+### Daytona — safe link sandbox (runs on user-forwarded links AND email links) · 🟡 · confidence: high
+- `pip install daytona`; `create() → sandbox.process.exec("curl -sSIL …") → delete()` in `finally`. ~$200 starter + hackathon credits.
+- **When it fires:** whenever a link reaches the `link_intel` node — either a verified member **forwards/pastes a link to the bot**, or a **scam email contains one** — the agent opens it in a fresh, disposable Daytona sandbox to resolve redirects/final URL/content-type, then deletes the sandbox. Keeps the suspicious page off the elder's device and our host. Bright Data adds the domain/brand signals; Daytona is the safe "open it and look" step.
 
 ### TokenRouter — LLM gateway · 🟡 (off by default) · confidence: medium
 - `https://api.tokenrouter.io/v1` (OpenAI-compatible), keys `tr_…`, modes `auto:cost|fast|balance|quality`. **BYO provider keys**. Not OpenRouter. Flip on via `make_llm()` env.
@@ -457,7 +458,12 @@ Telegram is **not** a webhook endpoint — the bot uses long polling (§11).
 - **Setup:** `@BotFather` → `/newbot` → real `TELEGRAM_BOT_TOKEN` (you provide). `scripts/set_bot_commands.py` sets `/setcommands`, `/setdescription`.
 - **No webhook, no tunnel.** In the process lifespan: `await app.initialize()`, `await app.start()`, `await app.updater.start_polling()` as a task; stop on shutdown. Works on `localhost`.
 - **Verified-members gate (requirement 2).** A PTB `TypeHandler` runs **before** all other handlers and checks the sender's `telegram_user_id` against `users.verified`. First contact → bot replies *"Welcome — please enter your access code: `/verify <code>`"*. Correct `ACCESS_CODE` (from `.env`) → mark `verified=1`, onboard. Unverified users are politely refused. `ADMIN_TELEGRAM_ID` can `/approve <id>` / `/revoke <id>`.
-- **Intake mapping (reactive channel):** text → `message.text`; screenshot → `message.photo[-1]` → `get_file` → SenseNova/Kimi-vision; voice → `message.voice` (OGG) → ffmpeg → Whisper; link → URL entities (`url` slice / `text_link` → `entity.url`; captions use `caption_entities`).
+- **Two modes, both always on.** (1) **Interactive** — a verified member can **send or forward anything** (a link they're unsure about, typed text, a screenshot, a voice note) and the bot **analyzes it and replies** with the bilingual verdict. They can literally just paste a suspicious link and get an answer. (2) **Autonomous** — independently and at the same time, the email monitor scans the inbox and **pushes warnings on its own**, with no message from anyone. The same process runs both.
+- **Intake mapping (interactive channel):** the handler accepts **any** message from a verified member —
+  - text → `message.text`
+  - screenshot → `message.photo[-1]` → `get_file` → SenseNova/Kimi-vision
+  - voice → `message.voice` (OGG) → ffmpeg → Whisper
+  - **link** → URL entities (`url` slice / `text_link` → `entity.url`; captions use `caption_entities`) → routed to the `link_intel` node: **Bright Data** domain/brand/this-week checks **+ the link is opened safely inside a fresh Daytona sandbox** (`curl -sSIL` resolves the redirect chain, final URL, and content-type without touching the user's device) → bilingual verdict reply.
 - **Guardian pairing** (a bot can't message someone who never `/start`-ed it): elder `/invite` → 6-char code; guardian `/start` then `/guardian <code>` → capture guardian `chat_id`, link, status `active`.
 - **Family alert** (`alert_service`): fired on a forwarded **high-risk** item *and* a **scam email** (§7) → `bot.send_message(guardian_chat_id, …)`.
 - **Bilingual replies & alerts with confidence % (requirements 6 & 7).** `bot/replies.py` renders the `Verdict` as:
@@ -548,7 +554,7 @@ Backend-first; riskiest-thing-first; each ends with a verifiable check.
 - **M3 — Family loop.** `guardian_links`, `/invite` + `/guardian <code>`, `alert_service` fires on high risk. ✅ High-risk forward pings the guardian (bilingual).
 - **M4 — 📧 Autonomous email + impostor detection (the headline).** IMAP poller on the real Gmail; `email_forensics` (display-name/lookalike/punycode/SPF-DKIM/etc.); alert family. ✅ Send a phishing email to the inbox → ~20s later the family phone buzzes with a bilingual alert naming the sender + why + confidence %.
 - **M5 — Screenshots.** `ocr`: SenseNova (Kimi-vision fallback). ✅ Forwarded image → verdict.
-- **M6 — Links.** `link_intel`: Bright Data; optional Daytona; `verify` ToolNode. ✅ Suspicious URL → verdict cites domain age/impersonation.
+- **M6 — Links (interactive + safe-open).** `link_intel`: Bright Data **+ Daytona safe-open**; `verify` ToolNode. ✅ A member pastes/forwards a link to the bot → it's opened in a Daytona sandbox and the verdict cites domain age/impersonation/redirects.
 - **M7 — Voice.** `transcribe`: Whisper, ffmpeg OGG→mp3. ✅ Voice note → verdict.
 - **M8 — Trends API.** `intelligence/trends` + `stats`. ✅ Endpoint returns trending scams.
 - **M9 — Contract export & client stubs.** stable `operationId`s, export `docs/openapi.json`, prove `gen_clients.sh`. ✅ TS + Dart clients generate cleanly.

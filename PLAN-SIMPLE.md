@@ -31,7 +31,7 @@ on its own.**
 
 | | How it starts | What happens |
 |---|---|---|
-| **1. You ask it** *(reactive)* | The person **forwards** a suspicious text, screenshot, voice note, or link to the bot. | They get a simple answer back in seconds, with a 🔴🟡🟢 light. |
+| **1. You ask it** *(reactive)* | The person **sends or forwards** anything — a text, screenshot, voice note, or just **pastes a link** — to the bot, like chatting with a helper. | They get a simple answer back in seconds, with a 🔴🟡🟢 light. If it's a link, the **safe room (Daytona)** opens it in a sealed container first to see where it really goes. |
 | **2. It watches for you** *(automatic)* | Nobody does anything. A **scam email lands in the inbox** the system is watching. | The system reads it on its own and, if it's a scam, **messages the family** straight away. |
 
 The second one is the safety net: it protects people *even when they don't think to ask.*
