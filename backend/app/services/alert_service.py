@@ -50,10 +50,13 @@ async def alert(session, bot, verdict: Verdict, source: dict, report=None, inclu
         if not cid or cid in seen:
             continue
         seen.add(cid)
-        # each person gets the alert in THEIR active language
+        # each person gets the alert in THEIR active language, with language-switch buttons
+        from app.bot import lang_buttons  # local import avoids a cycle
+
         text = format_alert(verdict, who, source, member_service.langs_of(u))
         try:
-            await bot.send_message(chat_id=cid, text=text)
+            m = await bot.send_message(chat_id=cid, text=text, reply_markup=lang_buttons.keyboard())
+            lang_buttons.remember(cid, m.message_id, {"kind": "alert", "verdict": verdict, "who": who, "source": source})
             sent += 1
         except Exception:
             pass

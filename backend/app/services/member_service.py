@@ -9,10 +9,9 @@ from app.models.tables import User
 
 def langs_of(user: User | None) -> list[str]:
     """The member's active reply language(s). One language at a time by default."""
-    if user is None or not user.language:
+    if user is None or not user.language or user.language == "both":
+        # "both" is a legacy value — one language at a time now, so collapse to the default.
         return settings.default_languages
-    if user.language == "both":  # legacy rows
-        return ["en", "zh"]
     return [c.strip() for c in user.language.split(",") if c.strip()] or settings.default_languages
 
 

@@ -14,6 +14,7 @@ from email.header import decode_header, make_header
 
 from bs4 import BeautifulSoup
 
+from app.bot import lang_buttons
 from app.bot.replies import format_verdict
 from app.core.config import settings
 from app.core.db import async_session_factory
@@ -173,10 +174,16 @@ async def _handle_email(bot, session, m: dict) -> None:
     )
     v = result.get("verdict")
 
-    # 3) Show the watcher the verdict (edit the status message in place).
+    # 3) Show the watcher the verdict (edit the status message in place) + language buttons.
     if status is not None and v is not None:
         try:
-            await bot.edit_message_text(format_verdict(v, langs), chat_id=elder_chat, message_id=status.message_id)
+            await bot.edit_message_text(
+                format_verdict(v, langs),
+                chat_id=elder_chat,
+                message_id=status.message_id,
+                reply_markup=lang_buttons.keyboard(),
+            )
+            lang_buttons.remember(elder_chat, status.message_id, {"kind": "verdict", "verdict": v})
         except Exception:
             pass
 

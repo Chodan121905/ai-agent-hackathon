@@ -16,6 +16,7 @@ from telegram.ext import (
     Application,
     ApplicationBuilder,
     ApplicationHandlerStop,
+    CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
     MessageHandler,
@@ -25,7 +26,8 @@ from telegram.ext import (
 
 from app.core.config import settings
 from app.core.db import async_session_factory
-from app.bot.replies import format_verdict
+from app.bot import lang_buttons
+from app.bot.replies import format_alert, format_verdict
 from app.services import check_service, guardian_service, member_service
 
 _NOT_AUTHORIZED = (
@@ -271,19 +273,59 @@ async def _on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         if result.get("alerted"):
             final_text += f"\n\n📣 Alerted {result['alerted']} family member(s)."
 
+    markup = lang_buttons.keyboard()  # every reply carries the language-switch buttons
+    sent = None
     if status["msg"] is not None:
         try:
-            await status["msg"].edit_text(final_text)
+            sent = await status["msg"].edit_text(final_text, reply_markup=markup)
         except Exception:
-            await msg.reply_text(final_text)
+            try:
+                sent = await msg.reply_text(final_text, reply_markup=markup)
+            except Exception:
+                sent = None
     else:
-        await msg.reply_text(final_text)
+        try:
+            sent = await msg.reply_text(final_text, reply_markup=markup)
+        except Exception:
+            sent = None
+
+    if intent == "check" and sent is not None and result.get("verdict") is not None:
+        lang_buttons.remember(sent.chat_id, sent.message_id, {"kind": "verdict", "verdict": result["verdict"]})
+
+
+async def _on_lang_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    q = update.callback_query
+    if q is None:
+        return
+    lang = (q.data or "lang:en").split(":", 1)[1]
+    tg_user = q.from_user
+    chat_id = q.message.chat_id if q.message else None
+    async with async_session_factory() as session:
+        user = await member_service.get_or_create_telegram_user(session, tg_user.id, chat_id, tg_user.full_name)
+        await member_service.set_language(session, user, [lang])
+
+    try:
+        await q.answer("✅ Now replying in English." if lang == "en" else "✅ 已切换为中文。")
+    except Exception:
+        pass
+
+    payload = lang_buttons.recall(chat_id, q.message.message_id) if q.message else None
+    if payload and q.message:
+        if payload.get("kind") == "alert":
+            text = format_alert(payload["verdict"], payload.get("who", "your family member"), payload.get("source", {}), [lang])
+        else:
+            text = format_verdict(payload["verdict"], [lang])
+        try:
+            await q.edit_message_text(text, reply_markup=lang_buttons.keyboard())
+        except Exception:
+            pass
 
 
 # ───────────────────────── build ─────────────────────────
 def build_application() -> Application:
     app = ApplicationBuilder().token(settings.TELEGRAM_BOT_TOKEN).build()
     app.add_handler(TypeHandler(Update, _gate), group=-1)
+    app.add_handler(CallbackQueryHandler(_on_lang_button, pattern=r"^lang:"))
     app.add_handler(CommandHandler("start", _start))
     app.add_handler(CommandHandler("verify", _verify))
     app.add_handler(CommandHandler("help", _help))
