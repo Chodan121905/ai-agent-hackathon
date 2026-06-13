@@ -157,7 +157,7 @@ ai-agent-hackathon/
 │   │   │   └── email_monitor.py  # IMAP poll loop → check_service → alert (CHANNEL B)
 │   │   ├── agent/
 │   │   │   ├── state.py · graph.py · prompts.py · llm.py · verdict.py
-│   │   │   └── nodes/  intake · extract · analyze · verify · synthesize · decide
+│   │   │   └── nodes/  intake · extract · intent · analyze · verify · synthesize · decide
 │   │   ├── integrations/  sensenova.py · whisper_stt.py · videodb_stt.py · brightdata.py · daytona.py
 │   │   │                  · email_forensics.py   # impostor/spoofed-sender detection (§7.3)
 │   │   └── services/  check_service.py · guardian_service.py · alert_service.py · intelligence_service.py
@@ -195,6 +195,9 @@ class GraphState(TypedDict):
     email_headers: Optional[dict]    # From, Reply-To, Return-Path, Authentication-Results (email only)
     modality: Modality
     language_hint: Optional[str]
+    intent: Optional[str]            # "check" (default) | "set_language" | "help"
+    requested_languages: Optional[list[str]]   # parsed from a natural-language language request, e.g. ["zh"]
+    pref_languages: list[str]        # the member's saved output languages (default ["en","zh"])
     extracted_text: Annotated[list[str], lambda a, b: a + b]   # reducers → parallel writes merge
     link_intel: Annotated[list[dict], lambda a, b: a + b]
     sender_analysis: Optional[dict]  # filled by email_forensics for the email channel
@@ -211,9 +214,10 @@ class GraphState(TypedDict):
 |---|---|---|
 | 1 Intake | `intake` | Normalize input; set `modality`; detect language. Email also parses headers + runs `email_forensics` → `sender_analysis`. |
 | 2 Route | `add_conditional_edges("intake", route_by_modality, {...})` | Fan out by modality (`Send` for multi-attachment). |
-| 3 Extract | `ocr`, `transcribe`, `link_intel`, text/email→straight | Each writes `extracted_text` / `link_intel`; parallel. |
+| 3 Extract | `ocr`, `transcribe`, `link_intel`, text/email→straight | Each writes `extracted_text` / `link_intel`; parallel. **Voice is transcribed here (Whisper) so its text feeds everything downstream — including command detection.** |
+| 3.5 Intent | `intent` (+ `set_language`) | On the resolved text, classify intent. If the member asked — in **any language, typed or spoken** — to **change the reply language** (e.g. "reply in Chinese only", "用英文", "use both"), update their `language` preference and confirm; **skip scam analysis**. Otherwise → continue to analyze. |
 | 4 Analyze ∥ Verify | `analyze`, `verify` | The swarm: Kimi tactic detection + `ToolNode`/forensics checks. Both join at synthesize. |
-| 5 Synthesize | `synthesize` | `llm.with_structured_output(Verdict, method="json_schema")` → strict JSON, **bilingual EN+中文**, with confidence. |
+| 5 Synthesize | `synthesize` | `llm.with_structured_output(Verdict, method="json_schema")` → strict JSON, with confidence, in the member's **preferred languages** (default EN+中文). |
 | 6 Decide | `add_conditional_edges("synthesize", decide, {...})` | Always persist; reply (Telegram) or alert family (high-risk / scam email). |
 
 ### Wiring sketch
@@ -221,19 +225,27 @@ class GraphState(TypedDict):
 # app/agent/graph.py
 from langgraph.graph import StateGraph, START, END
 from app.agent.state import GraphState
-from app.agent.nodes import intake, extract, analyze, verify, synthesize, decide
+from app.agent.nodes import intake, extract, intent, analyze, verify, synthesize, decide
 
 def build_graph():
     g = StateGraph(GraphState)
     for name, fn in [("intake", intake.run), ("ocr", extract.ocr), ("transcribe", extract.transcribe),
-                     ("link_intel", extract.link_intel), ("analyze", analyze.run), ("verify", verify.run),
+                     ("link_intel", extract.link_intel), ("intent", intent.run),
+                     ("set_language", intent.set_language), ("analyze", analyze.run), ("verify", verify.run),
                      ("synthesize", synthesize.run), ("alert_family", decide.alert_family)]:
         g.add_node(name, fn)
     g.add_edge(START, "intake")
+    # voice/image/link are turned into text first; plain text goes straight to the intent check
     g.add_conditional_edges("intake", extract.route_by_modality,
-                            {"image": "ocr", "voice": "transcribe", "link": "link_intel", "text": "analyze"})
+                            {"image": "ocr", "voice": "transcribe", "link": "link_intel", "text": "intent"})
     for n in ("ocr", "transcribe", "link_intel"):
-        g.add_edge(n, "analyze"); g.add_edge(n, "verify")
+        g.add_edge(n, "intent")            # all paths reach intent once text is available
+    # intent: a language request short-circuits to set_language; otherwise fan out to the swarm
+    def route_intent(state):
+        return "set_language" if state.get("intent") == "set_language" else ["analyze", "verify"]
+    g.add_conditional_edges("intent", route_intent,
+                            {"set_language": "set_language", "analyze": "analyze", "verify": "verify"})
+    g.add_edge("set_language", END)
     g.add_edge("analyze", "synthesize"); g.add_edge("verify", "synthesize")
     g.add_conditional_edges("synthesize", decide.route, {"alert": "alert_family", "done": END})
     g.add_edge("alert_family", END)
@@ -254,13 +266,17 @@ def make_llm(role: str = "brain") -> ChatOpenAI:
 > If `kimi-k2.6` rejects `method="json_schema"`, drop `method=` to fall back to tool-calling structured output.
 
 ### System prompt (`app/agent/prompts.py`)
-Start from the README's paste-ready Kimi prompt, with three changes locked in:
-1. **Bilingual output** — fill **both** `explanation_en` & `explanation_zh`, and `action_en` & `action_zh`, every
-   time (not "the detected language"). Chinese = Simplified.
-2. **Use `sender_analysis`** — when present, the model must reference concrete sender facts in the explanation
-   (e.g. *"the sender pretends to be DBS but the real address is alerts@dbs-verify.ru"*).
-3. **Confidence** — return a `confidence` 0–1 that the reply renders as a %.
-Disable k2.6 `thinking` mode on the fast path to cut latency.
+Two prompts:
+- **Intent classifier** (cheap `make_llm("triage")`) — on the resolved text, return `set_language` (with the
+  requested language code[s]) / `help` / `check`. It must understand requests in **any language, typed or
+  transcribed from voice** ("reply in Chinese", "用英文回答", "both please", "speak Malay").
+- **Main synthesize prompt** — start from the README's paste-ready Kimi prompt, with these locked in:
+  1. **Preferred-language output** — fill explanation/action for each code in `pref_languages` (default `en`,`zh`;
+     Chinese = Simplified). EN+ZH are always available; MS/TA only when the member asked for them.
+  2. **Use `sender_analysis`** — reference concrete sender facts (*"pretends to be DBS but the real address is
+     alerts@dbs-verify.ru"*).
+  3. **Confidence** — return `confidence` 0–1 that the reply renders as a %.
+  Disable k2.6 `thinking` mode on the fast path to cut latency.
 
 ---
 
@@ -289,11 +305,16 @@ class Verdict(BaseModel):
     tactics: list[str] = Field(default_factory=list, description="named tactics; [] if none")
     scam_category: Optional[str] = Field(default=None,
         description="bank_impersonation | govt_official | phishing | lottery | romance | job | other")
-    # BILINGUAL — always fill BOTH languages (requirement 6)
+    # Output languages follow the member's preference (default English + 中文, requirement 6).
+    # EN+ZH are always filled; MS/TA only when the member asked for them (see intent / pref_languages).
     explanation_en: str = Field(description="1–2 simple sentences a 70-year-old understands (English)")
     explanation_zh: str = Field(description="同上，简体中文")
     action_en: str = Field(description="the single clearest next step (English)")
     action_zh: str = Field(description="同上，简体中文")
+    explanation_ms: Optional[str] = None      # Malay — filled only on request
+    explanation_ta: Optional[str] = None      # Tamil — filled only on request
+    action_ms: Optional[str] = None
+    action_ta: Optional[str] = None
     sender_analysis: Optional[SenderAnalysis] = None      # email channel; null elsewhere
     input_language: str = Field(description="detected language of the original input: en | zh | ms | ta | other")
     alert_family: bool = Field(description="true when risk_level == 'high'")
@@ -410,8 +431,9 @@ SQLModel tables, created on startup (`SQLModel.metadata.create_all`). No migrati
 ```
 users
   id INTEGER pk · telegram_chat_id INTEGER (unique, nullable) · telegram_user_id INTEGER (unique, nullable)
-  name TEXT · language TEXT default 'en' · role TEXT ('elder'|'guardian'|'both')
+  name TEXT · language TEXT default 'both' · role TEXT ('elder'|'guardian'|'both')
   verified INTEGER default 0 · is_admin INTEGER default 0 · created_at TEXT
+  -- language = output preference: both(en+zh) | en | zh | ms | ta — changed by asking in natural language
   -- VERIFIED GATE (req 2): only verified=1 users may use the bot; is_admin can /approve, /revoke
 
 guardian_links
@@ -462,11 +484,12 @@ Telegram is **not** a webhook endpoint — the bot uses long polling (§11).
 - **Intake mapping (interactive channel):** the handler accepts **any** message from a verified member —
   - text → `message.text`
   - screenshot → `message.photo[-1]` → `get_file` → SenseNova/Kimi-vision
-  - voice → `message.voice` (OGG) → ffmpeg → Whisper
+  - voice → `message.voice` (OGG) → ffmpeg → **Whisper transcribes it to text**, which feeds the agent — so a spoken scam to check *and* a spoken command like "change to English" are both understood
   - **link** → URL entities (`url` slice / `text_link` → `entity.url`; captions use `caption_entities`) → routed to the `link_intel` node: **Bright Data** domain/brand/this-week checks **+ the link is opened safely inside a fresh Daytona sandbox** (`curl -sSIL` resolves the redirect chain, final URL, and content-type without touching the user's device) → bilingual verdict reply.
 - **Guardian pairing** (a bot can't message someone who never `/start`-ed it): elder `/invite` → 6-char code; guardian `/start` then `/guardian <code>` → capture guardian `chat_id`, link, status `active`.
 - **Family alert** (`alert_service`): fired on a forwarded **high-risk** item *and* a **scam email** (§7) → `bot.send_message(guardian_chat_id, …)`.
-- **Bilingual replies & alerts with confidence % (requirements 6 & 7).** `bot/replies.py` renders the `Verdict` as:
+- **Change language by just asking (typed or spoken).** A member can say *"reply in Chinese only"*, *"用英文回答"*, *"please use both"* — in any language — and the agent's intent step saves their `language` preference and confirms in that language. Because voice notes are transcribed first, a **spoken** request works too. Default stays bilingual EN+中文 until they change it.
+- **Replies & alerts with confidence % (requirements 6 & 7).** `bot/replies.py` renders the `Verdict` in the member's preferred languages (default English + 中文), e.g.:
   ```
   🔴 SCAM · 92% sure   |   诈骗 · 92% 确定
   🧠 Tactics: bank impersonation · urgency · sender mismatch
@@ -518,7 +541,8 @@ ADMIN_TELEGRAM_ID=                             # your Telegram numeric user id (
 LLM_BASE_URL=https://api.moonshot.ai/v1        # or https://api.tokenrouter.io/v1
 LLM_API_KEY=sk-...                             # Moonshot key, or tr_... for TokenRouter
 LLM_MODEL_BRAIN=kimi-k2.6
-LLM_MODEL_TRIAGE=kimi-k2.6
+LLM_MODEL_TRIAGE=kimi-k2.6                      # also used for intent / language-request detection
+DEFAULT_LANGUAGES=en,zh                         # output languages for new members; changeable in chat
 
 # --- Autonomous email monitoring (real Gmail via App Password — req 4, see §7.4) ---
 EMAIL_IMAP_HOST=imap.gmail.com
@@ -550,12 +574,12 @@ Backend-first; riskiest-thing-first; each ends with a verifiable check.
 
 - **M0 — Scaffold + one-process runner.** `pyproject.toml`, FastAPI app, `__main__.py` (`python -m app`), `/health`, `config.py`, `db.py` (SQLite + `init_db()`). ✅ One command boots the process; `GET /health` ok; `scamguardian.db` created.
 - **M1 — The brain (highest priority).** Text-only graph: intake → analyze → synthesize → strict `Verdict`, **bilingual EN+中文 with confidence %**. ✅ `POST /api/v1/check` (text) returns a correct bilingual verdict. *Don't move on until reliable.*
-- **M2 — Real Telegram bot + verified gate.** Real token, long polling in lifespan, `/verify <code>` gate, text handler → `check_service` → bilingual reply. ✅ Only verified members get a verdict; strangers are refused.
+- **M2 — Real Telegram bot + verified gate + language switch.** Real token, long polling in lifespan, `/verify <code>` gate, text handler → `check_service` → bilingual reply. Intent step detects natural-language language requests and saves the member's preference. ✅ Only verified members get a verdict; strangers refused; "reply in English only" changes the output language.
 - **M3 — Family loop.** `guardian_links`, `/invite` + `/guardian <code>`, `alert_service` fires on high risk. ✅ High-risk forward pings the guardian (bilingual).
 - **M4 — 📧 Autonomous email + impostor detection (the headline).** IMAP poller on the real Gmail; `email_forensics` (display-name/lookalike/punycode/SPF-DKIM/etc.); alert family. ✅ Send a phishing email to the inbox → ~20s later the family phone buzzes with a bilingual alert naming the sender + why + confidence %.
 - **M5 — Screenshots.** `ocr`: SenseNova (Kimi-vision fallback). ✅ Forwarded image → verdict.
 - **M6 — Links (interactive + safe-open).** `link_intel`: Bright Data **+ Daytona safe-open**; `verify` ToolNode. ✅ A member pastes/forwards a link to the bot → it's opened in a Daytona sandbox and the verdict cites domain age/impersonation/redirects.
-- **M7 — Voice.** `transcribe`: Whisper, ffmpeg OGG→mp3. ✅ Voice note → verdict.
+- **M7 — Voice.** `transcribe`: Whisper, ffmpeg OGG→mp3 → text fed to the agent. ✅ A voice note is transcribed and understood → verdict; a spoken "change to English" also works.
 - **M8 — Trends API.** `intelligence/trends` + `stats`. ✅ Endpoint returns trending scams.
 - **M9 — Contract export & client stubs.** stable `operationId`s, export `docs/openapi.json`, prove `gen_clients.sh`. ✅ TS + Dart clients generate cleanly.
 - **M10 — Polish & demo.** bot commands, scam-of-week job, seed data, run instructions.
@@ -607,6 +631,7 @@ Prereqs: Python 3.12+, **ffmpeg** on PATH (voice), the real Telegram bot token, 
 - [ ] **Verified-only:** a stranger is refused; `/verify <code>` admits a member.
 - [ ] A verified member texts the bot and gets a correct verdict — **bilingual EN+中文, with a confidence %, naming the tactic and why.**
 - [ ] **Autonomous + impostor detection:** a phishing email (spoofed display name / lookalike domain) sent to the real Gmail triggers a **bilingual family alert** within ~20s — *without anyone forwarding it* — naming the real sender and why.
+- [ ] A member can **ask in natural language (typed or by voice) to change the reply language** and it's honored; a **voice note is transcribed** and understood by the agent.
 - [ ] The family loop also fires on a forwarded high-risk item.
 - [ ] `GET /api/v1/intelligence/trends` returns aggregated trending scams from SQLite.
 - [ ] `/openapi.json` exported; TS + Dart clients generate cleanly (web + Flutter readiness proven).

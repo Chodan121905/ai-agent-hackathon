@@ -188,6 +188,10 @@ These were specifically requested, and the plan now guarantees them:
   code** to be let in; everyone else is politely turned away.
 - **It tells you *why* and *how sure*.** Every answer shows a confidence like *"92% sure"*, names the trick,
   and explains in plain words — in **both English and Chinese**.
+- **Just tell it which language you want.** Say (or type) *"reply in Chinese"* or *"English only"* — in
+  normal words, no commands to memorize — and it switches. It starts in both languages until you change it.
+- **It listens to voice messages.** Send a voice note and it writes down what you said, then checks it just
+  like a typed message — so you can even *speak* a suspicious message or *say* "use English".
 - **It catches fakes, not just bad wording.** It checks the sender's real email address and web links for
   impersonation — fake "bank" senders, look-alike addresses, and disguised links.
 - **It runs as one program on your laptop.** Start it once and it does everything — answers messages *and*
