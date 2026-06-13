@@ -8,155 +8,171 @@
 
 ## The one-sentence version
 
-**Scam Guardian is a helper you talk to inside Telegram (a chat app). You forward it a suspicious
-message, photo, voice note, or link, and within seconds it tells you — in your own language — "this
-is a scam, here's the trick they're using, don't do it." If it's dangerous, it also quietly warns
-your family.**
+**Scam Guardian is a helper inside Telegram (a chat app). It protects people in two ways: (1) you can
+forward it anything suspicious and it instantly tells you "this is a scam, here's the trick, don't do
+it" — in your own language; and (2) it can quietly watch a person's email inbox and, the moment a scam
+email arrives, automatically warn their family — even if the person never noticed it.**
 
 ---
 
 ## The problem (why this matters)
 
 Older and less tech-savvy people lose the most money to scams. They won't install special apps or
-learn new tools — but they *already* use chat apps, and they *already* forward dodgy messages to
-their kids asking **"is this real?"**
+learn new tools — but they *already* use chat apps, and they *already* forward dodgy messages to their
+kids asking **"is this real?"**
 
 So instead of building yet another app nobody installs, we put an **expert on the other end of that
-exact gesture.** Forwarding a message to one contact is something they already know how to do.
+gesture** — and we go one step further: we also let the system **watch their inbox and raise the alarm
+on its own.**
+
+---
+
+## Two ways it helps
+
+| | How it starts | What happens |
+|---|---|---|
+| **1. You ask it** *(reactive)* | The person **forwards** a suspicious text, screenshot, voice note, or link to the bot. | They get a simple answer back in seconds, with a 🔴🟡🟢 light. |
+| **2. It watches for you** *(automatic)* | Nobody does anything. A **scam email lands in the inbox** the system is watching. | The system reads it on its own and, if it's a scam, **messages the family** straight away. |
+
+The second one is the safety net: it protects people *even when they don't think to ask.*
 
 ---
 
 ## The big idea, as a picture
 
-Think of Scam Guardian as a **building with a security team inside.** A worried message comes in the
-front door, gets passed to the right specialist, the team investigates, and a clear answer comes back
-out the door — fast.
+Think of Scam Guardian as a **building with a security team inside.** A worry comes in — either someone
+hands it to the front desk, *or* the team spots a dangerous letter arriving in the mailbox by
+themselves. The team investigates, and a clear answer (or a warning to the family) goes back out.
 
 ```
-        👵  "Is this message real??"
-         │   (forwards it in the chat app)
-         ▼
-   ┌──────────────────────────────────────────────┐
-   │   🏢  THE SCAM GUARDIAN BUILDING               │
-   │                                                │
-   │   🚪 Front desk      →  receives the message   │
-   │   🗂️  Sorter         →  what kind is it?       │
-   │   👀 Reader          →  reads text in photos   │
-   │   👂 Listener        →  writes down voice notes│
-   │   🕵️ Investigator    →  checks suspicious links│
-   │   🧪 Safe room       →  opens links safely     │
-   │   🧠 Expert detective →  decides: scam or not?  │
-   │   📣 Dispatcher      →  picks the cheapest help │
-   │   🗃️ Filing cabinet  →  remembers everything   │
-   │                                                │
-   └──────────────────────────────────────────────┘
-         │                         │
-         ▼                         ▼
-   👵 gets a simple answer    📞 if dangerous, the
-      with a 🔴🟡🟢 light        family gets a heads-up
+   👵 "Is this real??"  ──forwards──┐          📧 a scam email quietly arrives ──┐
+                                     │                                            │
+                                     ▼                                            ▼
+   ┌──────────────────────── 🏢  THE SCAM GUARDIAN BUILDING ─────────────────────────┐
+   │                                                                                  │
+   │   🚪 Front desk        receives forwarded messages (the chat bot)                │
+   │   📬 Inbox watcher      keeps checking the email inbox on its own                 │
+   │   🗂️  Sorter            figures out what kind of thing arrived                    │
+   │   👀 Reader             reads text inside photos                                  │
+   │   👂 Listener           writes down what voice notes say                          │
+   │   🕵️ Investigator       checks if a link/website is fake or dangerous            │
+   │   🧪 Safe room          opens dangerous links in a sealed container               │
+   │   🧠 Expert detective   decides: scam or not? names the trick. (the brain)        │
+   │   📣 Dispatcher         picks the cheapest/fastest helper for each question       │
+   │   📒 Notebook           remembers everything (a simple file on the computer)      │
+   │                                                                                  │
+   └──────────────────────────────────────────────────────────────────────────────────┘
+              │                                              │
+              ▼                                              ▼
+        👵 simple answer with a light                📞 family gets a heads-up:
+           "🔴 Scam — don't click"                      "📧 Mum's inbox just got a scam
+                                                          email from 'DBS Security' — call her"
 ```
 
 ---
 
-## What happens when you forward something (the story)
+## Story 1 — you forward something
 
-Imagine your mother forwards a text that says *"Your bank account is suspended. Click here to verify."*
+Your mother forwards a text: *"Your bank account is suspended. Click here to verify."*
 
-1. **It arrives at the front desk.** The chat app (Telegram) hands the message to our building.
-2. **The sorter looks at it.** Is this plain text? A photo? A voice recording? A web link? Each goes
-   to the right specialist. (This one is text + a link.)
-3. **The specialists do their part:**
-   - If it were a **screenshot**, the **Reader** would read the words out of the picture.
-   - If it were a **voice note**, the **Listener** would write down what was said.
-   - Because there's a **link**, the **Investigator** checks it: *Is this website brand new? Is it
-     pretending to be the real bank? Have other people reported it as a scam this week?* And if we
-     need to actually open the link, the **Safe Room** does it inside a sealed container so nothing
-     can reach your phone or our computers.
-4. **The expert detective decides.** This is the brain. It reads everything the specialists found and
-   judges: *Is this a scam? Which trick are they using?* It recognizes classic tricks — rushing you,
-   pretending to be the bank/police, threatening you, asking for passwords or codes, promising prizes.
-5. **A simple answer comes back out the door**, written in plain words in *your* language:
+1. **It arrives at the front desk** (the chat bot).
+2. **The sorter** sees it's text with a link.
+3. **The investigator** checks the link: *Is this website brand new? Is it pretending to be the real
+   bank? Have others reported it this week?* If the link must actually be opened, the **safe room** does
+   it in a sealed container so nothing reaches anyone's phone.
+4. **The expert detective** decides it's a scam and names the trick (pretending to be the bank + rushing
+   you to panic).
+5. **A simple answer comes back**, in her language:
    > 🔴 **Scam. Don't click.** They are pretending to be your bank and rushing you so you panic.
    > Real banks never ask you to verify through a link like this.
-6. **The filing cabinet remembers it** (without your name) — so we can show everyone *"here are the
-   scams going around this week."*
-7. **If it's dangerous, your family is warned.** Your son or daughter gets a quiet message: *"Mum is
-   being targeted by a scam right now"* — so they can call her immediately. Even if she freezes, the
-   safety net catches it.
+6. **The notebook remembers it** (without her name) so we can show *"scams going around this week."*
 
-All of this takes **a few seconds.**
+All in **a few seconds.**
+
+## Story 2 — it catches an email by itself ✨ (new)
+
+Nobody forwards anything. A scam email lands in the inbox the system is watching.
+
+1. **The inbox watcher** notices the new email within a few seconds.
+2. It hands the email to the **same expert detective**, who reads the sender, the subject, and the
+   message, and decides it's a scam.
+3. Because it's dangerous, the system **automatically messages the family** through the bot:
+   > 📧 **Scam email alert** — Mum's inbox just received an email from *"DBS Security"* that looks like
+   > a scam (pretending to be her bank and pushing her to click a link). Please check on her and tell
+   > her not to click anything or reply.
+4. The family can call her right away — **before** she ever acts on it.
+
+This is the part that protects people who would never have asked in the first place.
 
 ---
 
 ## Meet the team (and the real names behind each role)
 
-Every "team member" above is a real piece of technology (several are hackathon sponsors). Here's the
-plain-English job each one does:
+Every "team member" is a real piece of technology (several are hackathon sponsors). The plain-English job:
 
 | Team member | Real name | What it actually does, in plain words |
 |---|---|---|
-| 🚪 **Front desk** | **Telegram bot** | The chat contact people forward things to. Receives messages and sends answers back. Free, and everyone already has a chat app. |
-| 🧠 **Expert detective** | **Kimi k2.6** (an AI) | The brain. Reads the content and decides whether it's a scam, names the trick, and writes the simple explanation in the right language. |
-| 👀 **Reader** | **SenseNova U1** (an AI) | Reads the text *inside* a screenshot or photo. Also draws the weekly "scam to watch out for" poster. |
-| 👂 **Listener** | **Whisper** (backup: **VideoDB**) | Turns a spoken voice note into written words so the detective can read it. |
-| 🕵️ **Investigator** | **Bright Data** | Looks up a suspicious web link: how old the site is, whether it's faking a real company's name, and whether others have flagged it. |
-| 🧪 **Safe room** | **Daytona** | A sealed, throwaway room where a dangerous link can be opened safely, far away from your phone and our systems. |
-| 📣 **Dispatcher** | **TokenRouter** | Picks the cheapest, fastest AI for each question — easy questions go to a cheap helper, hard ones to the strong one. Keeps costs down. |
-| 🧑‍✈️ **Operations manager** | **LangGraph** | Makes sure every step happens in the right order and that specialists can work at the same time. The assembly line that runs the whole investigation. |
-| 🏢 **The building itself** | **FastAPI** | The software "office" everything runs inside, and the doorway the future website and phone app will also use. |
-| 🗃️ **Filing cabinet** | **Database (Supabase)** | Remembers reports, family connections, and the weekly scam trends. |
+| 🚪 **Front desk** | **Telegram bot** | The chat contact people forward things to, and where answers/alerts come from. |
+| 📬 **Inbox watcher** | **Email checker (IMAP)** | Keeps peeking at the email inbox and flags any new scam email on its own. |
+| 🧠 **Expert detective** | **Kimi k2.6** (an AI) | The brain — decides scam or not, names the trick, writes the simple explanation. |
+| 👀 **Reader** | **SenseNova U1** (an AI) | Reads text *inside* a screenshot. Also draws the weekly "scam to watch" poster. |
+| 👂 **Listener** | **Whisper** (backup: **VideoDB**) | Turns a spoken voice note into written words. |
+| 🕵️ **Investigator** | **Bright Data** | Looks up a suspicious link: how old, is it faking a real brand, has it been reported. |
+| 🧪 **Safe room** | **Daytona** | A sealed, throwaway space to open a dangerous link safely. |
+| 📣 **Dispatcher** | **TokenRouter** | Picks the cheapest/fastest AI per question to keep costs down. |
+| 🧑‍✈️ **Operations manager** | **LangGraph** | Runs the whole investigation in the right order, letting specialists work at once. |
+| 🏢 **The building** | **FastAPI** | The software "office" everything runs in, and the doorway the future website + phone app will use. |
+| 📒 **Notebook** | **SQLite** (a simple file) | Remembers reports, family connections, and weekly trends — just one file, nothing fancy. |
 
-> You don't need to remember any of these names. The point is: **each one is a small specialist, and
-> the manager makes them work together as a team.**
+> You don't need to remember any of these. Each is a small specialist; the manager makes them work as a team.
 
 ---
 
 ## Three things that make this more than a demo
 
-**1. The family safety net.** Scams work by isolating and panicking the victim. Our answer doesn't
-just go to the person being targeted — on a *high-risk* case, it also pings a family member so a real
-human can step in. A scam-checker that loops in family is far more powerful than one that doesn't.
+**1. The family safety net.** Scams work by isolating and panicking the victim. Our warnings reach a
+family member too — by forwarding *or* by catching a scam email automatically — so a real human can
+step in.
 
 **2. Learning without effort.** Once a week, a one-line *"scam of the week"* (with a simple picture)
-lands in the chat. People learn to spot scams with zero effort — no course, no app to open.
+lands in the chat. People learn to spot scams with zero effort.
 
-**3. The "trends" dashboard (why businesses pay us).** Because we (anonymously) remember every scam
-forwarded to us, we can show a live picture of *"what scams are spreading right now."* Banks and
-phone companies — who are now legally on the hook for scam losses — will pay for that early warning,
-and to protect their elderly customers. Families pay for peace of mind.
+**3. The "trends" notebook (why businesses pay us).** Because we (anonymously) remember every scam we
+see, we can show a live picture of *"what scams are spreading right now."* Banks and phone companies —
+now legally on the hook for scam losses — will pay for that early warning and to protect their elderly
+customers. Families pay for peace of mind.
 
 ---
 
 ## Why Telegram (and not WhatsApp)?
 
-The original idea used WhatsApp. We're using **Telegram** instead because, for building this quickly:
-
-- It's **free** and takes minutes to set up — no paid phone-messaging account needed.
+The original idea used WhatsApp. We use **Telegram** because, for building this quickly:
+- It's **free** and takes minutes to set up — no paid phone-messaging account.
 - It handles **text, photos, voice notes, and links** out of the box.
-- Our helper can **start a conversation with a family member** to send the warning (with WhatsApp this
-  is harder and costs money).
+- Our helper can **start a conversation with a family member** to send the warning.
+- For the demo it can run on a normal laptop with **nothing public to set up** — no special web address needed.
 
-Everything else about the product — the market, the business model, the pitch — stays exactly the same.
-*(One small rule we design around: a family member has to message our bot once first, so it's allowed
-to message them back later. We handle that with a simple "pairing code" during sign-up.)*
+Everything about the product — market, business model, pitch — stays the same. *(One small rule we design
+around: a family member messages the bot once first, so it's allowed to message them back later. We handle
+that with a simple "pairing code" at sign-up.)*
 
 ---
 
 ## What we're building **first** (and what comes later)
 
-Think of it like building a restaurant:
+Like building a restaurant:
 
-- **Now — the kitchen (the "backend").** This is where all the real work happens: receiving messages,
-  running the investigation, deciding the verdict, warning the family. We're building this first
-  because nothing works without it. The Telegram helper plugs straight into this kitchen.
-- **Later — the dining rooms (the "frontends").** Two ways for people to *see* and *manage* things on
-  a screen:
-  - a **website** (for the trends dashboard that banks would look at), and
-  - a **phone app** (built with a tool called Flutter, so one app works on both iPhone and Android).
+- **Now — the kitchen (the "backend").** Where all the real work happens: receiving messages, *watching
+  the inbox*, running the investigation, deciding the verdict, warning the family. Nothing works without
+  it. The Telegram helper plugs straight into this kitchen. For now the kitchen keeps its notes in **one
+  simple file** (no big database to set up).
+- **Later — the dining rooms (the "frontends").** Two screens for people to see and manage things:
+  - a **website** (for the trends dashboard banks would look at), and
+  - a **phone app** (built with Flutter, so one app works on both iPhone and Android).
 
-The important part: we're building the kitchen so that **both dining rooms can be added later without
-rebuilding anything.** The kitchen hands out its "menu" (a standard list of what it can do), and the
-website and phone app are built automatically from that menu. No wasted work, nothing to redo.
+The important part: the kitchen is built so **both dining rooms can be added later without rebuilding
+anything.** It hands out a "menu" of what it can do, and the website and phone app are built automatically
+from that menu.
 
 ---
 
@@ -164,14 +180,14 @@ website and phone app are built automatically from that menu. No wasted work, no
 
 - **Backend** — the engine room you don't see; does the actual work.
 - **Frontend** — the screens you *do* see (website, phone app).
-- **AI model** — a computer program trained to understand language, images, or speech. Kimi, SenseNova,
-  and Whisper are all AI models doing different jobs.
+- **AI model** — a program trained to understand language, images, or speech (Kimi, SenseNova, Whisper).
 - **Bot** — an automated account in a chat app that replies for us.
-- **Verdict** — the answer card we send back: a 🔴/🟡/🟢 risk light, the trick being used, and what to do.
+- **Inbox watcher / IMAP** — the part that keeps checking the email inbox for new mail.
+- **Verdict** — the answer card: a 🔴/🟡/🟢 light, the trick used, and what to do.
 - **Sandbox** — a sealed, disposable space to open something dangerous safely.
 
 ---
 
-> **In one line:** people forward a worry to a chat contact; a coordinated team of AI specialists
-> investigates in seconds; a dead-simple answer comes back; and if it's dangerous, the family is
-> warned — all inside the app they already use.
+> **In one line:** people forward a worry — *or the system spots a scam email on its own* — a coordinated
+> team of AI specialists investigates in seconds, a dead-simple answer comes back, and if it's dangerous
+> the family is warned — all inside the app they already use.
