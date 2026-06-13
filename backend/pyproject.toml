@@ -30,7 +30,7 @@ dependencies = [
 # Install on demand: `pip install -e ".[stt]"` etc. Kept optional so the core boots fast.
 stt = ["faster-whisper>=1.0"]
 videodb = ["videodb>=0.2"]
-daytona = ["daytona-sdk>=0.10"]
+daytona = ["daytona>=0.30"]
 dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.5"]
 
 [build-system]

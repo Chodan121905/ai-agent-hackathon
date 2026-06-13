@@ -13,7 +13,7 @@ from app.core.config import settings
 
 
 def _safe_open_sync(url: str) -> dict:
-    from daytona_sdk import Daytona, DaytonaConfig  # lazy import
+    from daytona import Daytona, DaytonaConfig  # lazy import (pip package: daytona)
 
     daytona = Daytona(DaytonaConfig(api_key=settings.DAYTONA_API_KEY))
     sandbox = None
