@@ -10,7 +10,7 @@
 
 **Scam Guardian is a helper inside Telegram (a chat app). It protects people in two ways: (1) you can
 forward it anything suspicious and it instantly tells you "this is a scam, here's the trick, don't do
-it" — in your own language; and (2) it can quietly watch a person's email inbox and, the moment a scam
+it" — in both English and Chinese; and (2) it can quietly watch a person's email inbox and, the moment a scam
 email arrives, automatically warn their family — even if the person never noticed it.**
 
 ---
@@ -94,12 +94,16 @@ All in **a few seconds.**
 Nobody forwards anything. A scam email lands in the inbox the system is watching.
 
 1. **The inbox watcher** notices the new email within a few seconds.
-2. It hands the email to the **same expert detective**, who reads the sender, the subject, and the
-   message, and decides it's a scam.
-3. Because it's dangerous, the system **automatically messages the family** through the bot:
-   > 📧 **Scam email alert** — Mum's inbox just received an email from *"DBS Security"* that looks like
-   > a scam (pretending to be her bank and pushing her to click a link). Please check on her and tell
-   > her not to click anything or reply.
+2. It hands the email to the **same expert detective**, who reads the message **and inspects the sender
+   address for fakery** — a common trick is an email that *looks* like it's from "DBS Bank" but is really
+   sent from a strange address like `alerts@dbs-verify.ru`. It also spots near-identical fake web
+   addresses (like `paypa1.com` instead of `paypal.com`).
+3. Because it's dangerous, the system **automatically messages the family** through the bot — in **both
+   English and Chinese**, and it says **how sure it is**:
+   > 📧 **Scam email alert · 92% sure** — Mum's inbox just got an email pretending to be *"DBS Bank"*,
+   > but the real sender is `alerts@dbs-verify.ru` — not the real bank. Please call her; tell her not to
+   > click or reply.
+   > （中文）妈妈的邮箱收到一封假冒"星展银行"的邮件，真实发件地址是 alerts@dbs-verify.ru，并非银行本身。请尽快联系她，不要点击或回复。
 4. The family can call her right away — **before** she ever acts on it.
 
 This is the part that protects people who would never have asked in the first place.
@@ -113,7 +117,7 @@ Every "team member" is a real piece of technology (several are hackathon sponsor
 | Team member | Real name | What it actually does, in plain words |
 |---|---|---|
 | 🚪 **Front desk** | **Telegram bot** | The chat contact people forward things to, and where answers/alerts come from. |
-| 📬 **Inbox watcher** | **Email checker (IMAP)** | Keeps peeking at the email inbox and flags any new scam email on its own. |
+| 📬 **Inbox watcher** | **Email checker (IMAP)** | Keeps peeking at the email inbox, flags any new scam email on its own, and checks whether the sender address is a **fake pretending to be a real company**. |
 | 🧠 **Expert detective** | **Kimi k2.6** (an AI) | The brain — decides scam or not, names the trick, writes the simple explanation. |
 | 👀 **Reader** | **SenseNova U1** (an AI) | Reads text *inside* a screenshot. Also draws the weekly "scam to watch" poster. |
 | 👂 **Listener** | **Whisper** (backup: **VideoDB**) | Turns a spoken voice note into written words. |
@@ -173,6 +177,24 @@ Like building a restaurant:
 The important part: the kitchen is built so **both dining rooms can be added later without rebuilding
 anything.** It hands out a "menu" of what it can do, and the website and phone app are built automatically
 from that menu.
+
+---
+
+## A few things we made sure of
+
+These were specifically requested, and the plan now guarantees them:
+
+- **Only approved family can use it.** It's not open to strangers. A new person types a one-time **access
+  code** to be let in; everyone else is politely turned away.
+- **It tells you *why* and *how sure*.** Every answer shows a confidence like *"92% sure"*, names the trick,
+  and explains in plain words — in **both English and Chinese**.
+- **It catches fakes, not just bad wording.** It checks the sender's real email address and web links for
+  impersonation — fake "bank" senders, look-alike addresses, and disguised links.
+- **It runs as one program on your laptop.** Start it once and it does everything — answers messages *and*
+  watches the inbox — for as long as it's running. Close it, and it stops. Nothing to host on the internet.
+- **You connect your own Gmail, safely.** You give it a special "app password" for a throwaway demo Gmail
+  (step-by-step instructions are in the technical plan). Then you can demo by sending a fake phishing email
+  to that inbox and watching the family get warned.
 
 ---
 
