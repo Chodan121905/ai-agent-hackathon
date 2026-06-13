@@ -8,9 +8,12 @@ from app.models.tables import User
 
 
 def langs_of(user: User | None) -> list[str]:
-    if user is None or not user.language or user.language == "both":
+    """The member's active reply language(s). One language at a time by default."""
+    if user is None or not user.language:
         return settings.default_languages
-    return [c.strip() for c in user.language.split(",") if c.strip()]
+    if user.language == "both":  # legacy rows
+        return ["en", "zh"]
+    return [c.strip() for c in user.language.split(",") if c.strip()] or settings.default_languages
 
 
 async def get_user(session, user_id: int | None) -> User | None:
@@ -76,10 +79,7 @@ async def set_verified_by_id(session, telegram_user_id: int, value: bool = True)
 
 
 async def set_language(session, user: User, langs: list[str]) -> User:
-    if set(langs) == {"en", "zh"} or not langs:
-        user.language = "both"
-    else:
-        user.language = ",".join(langs)
+    user.language = ",".join(langs) if langs else settings.DEFAULT_LANGUAGES
     await session.commit()
     await session.refresh(user)
     return user

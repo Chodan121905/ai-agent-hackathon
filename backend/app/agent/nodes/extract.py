@@ -6,6 +6,8 @@ is understood too.
 """
 from __future__ import annotations
 
+import asyncio
+
 from app.agent.nodes.intake import route_by_modality  # re-export for graph wiring
 from app.agent.util import find_urls
 from app.core.config import settings
@@ -45,13 +47,16 @@ async def transcribe(state: dict) -> dict:
 
 
 async def link_intel(state: dict) -> dict:
-    intel: list[dict] = []
-    for url in (state.get("urls") or [])[:5]:
-        intel.append(
-            {
-                "url": url,
-                "domain_intel": await brightdata.domain_intel(url),
-                "sandbox": await daytona.safe_open(url),
-            }
+    urls = (state.get("urls") or [])[:3]
+    if not urls:
+        return {}
+
+    async def one(url: str) -> dict:
+        # Bright Data domain intel and the Daytona sandbox run concurrently per URL.
+        domain_intel, sandbox = await asyncio.gather(
+            brightdata.domain_intel(url), daytona.safe_open(url)
         )
-    return {"link_intel": intel}
+        return {"url": url, "domain_intel": domain_intel, "sandbox": sandbox}
+
+    intel = await asyncio.gather(*[one(u) for u in urls])
+    return {"link_intel": list(intel)}

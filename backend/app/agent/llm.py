@@ -7,20 +7,25 @@ from app.core.config import settings
 
 
 def make_llm(role: str = "brain") -> ChatOpenAI:
-    """role: 'brain' (synthesize/analyze) | 'triage' (cheap intent classification).
+    """role: 'brain' (synthesize) | 'triage' (cheap intent classification).
 
-    Note: kimi-k2.6 (thinking model) only accepts temperature=1; lower values are rejected
-    with a 400. Configurable via LLM_TEMPERATURE if you point at a model that allows others.
+    kimi-k2.6 'thinking' mode is accurate but ~50s/call; disabling it drops to ~4s. The model
+    requires temperature 1.0 with thinking on and 0.6 with it off, so we set both together.
     """
     model = settings.LLM_MODEL_TRIAGE if role == "triage" else settings.LLM_MODEL_BRAIN
-    return ChatOpenAI(
+    kwargs = dict(
         model=model,
         base_url=settings.LLM_BASE_URL,
         api_key=settings.LLM_API_KEY or "missing",
-        temperature=settings.LLM_TEMPERATURE,
         timeout=60,
         max_retries=2,
     )
+    if settings.LLM_THINKING:
+        kwargs["temperature"] = 1.0
+    else:
+        kwargs["temperature"] = 0.6
+        kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+    return ChatOpenAI(**kwargs)
 
 
 def structured_llm(schema, role: str = "brain"):

@@ -12,7 +12,7 @@ from functools import lru_cache
 
 from langgraph.graph import END, START, StateGraph
 
-from app.agent.nodes import analyze, companion, extract, intake, intent, synthesize, verify
+from app.agent.nodes import companion, extract, intake, intent, synthesize, verify
 from app.agent.state import GraphState
 
 
@@ -26,7 +26,6 @@ def build_graph():
     g.add_node("intent", intent.run)
     g.add_node("set_language", intent.set_language)
     g.add_node("chat", companion.run)
-    g.add_node("analyze", analyze.run)
     g.add_node("verify", verify.run)
     g.add_node("synthesize", synthesize.run)
 
@@ -41,24 +40,24 @@ def build_graph():
     for n in ("ocr", "transcribe", "link_intel"):
         g.add_edge(n, "intent")
 
-    # language request → set_language; casual talk → chat; otherwise fan out to the swarm
+    # language request → set_language; casual talk → chat; otherwise run the check
     def route_intent(state: dict):
         i = state.get("intent")
         if i == "set_language":
             return "set_language"
         if i in ("chat", "help"):
             return "chat"
-        return ["analyze", "verify"]
+        return "verify"
 
     g.add_conditional_edges(
         "intent",
         route_intent,
-        {"set_language": "set_language", "chat": "chat", "analyze": "analyze", "verify": "verify"},
+        {"set_language": "set_language", "chat": "chat", "verify": "verify"},
     )
     g.add_edge("set_language", END)
     g.add_edge("chat", END)
 
-    g.add_edge("analyze", "synthesize")
+    # verify (deterministic forensics) → synthesize (the single LLM verdict call)
     g.add_edge("verify", "synthesize")
     g.add_edge("synthesize", END)
 

@@ -6,6 +6,7 @@ to the user; only derived signals go forward. Returns "" / {} when not configure
 """
 from __future__ import annotations
 
+import asyncio
 import re
 
 import httpx
@@ -14,12 +15,13 @@ import tldextract
 from app.core.config import settings
 
 _API = "https://api.brightdata.com/request"
+_TIMEOUT = 10  # keep Bright Data off the critical path; Daytona is the real link check
 
 
 async def _request(zone: str, url: str, fmt: str = "raw") -> str:
     if not settings.BRIGHTDATA_API_TOKEN:
         return ""
-    async with httpx.AsyncClient(timeout=45) as client:
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         r = await client.post(
             _API,
             headers={"Authorization": f"Bearer {settings.BRIGHTDATA_API_TOKEN}"},
@@ -38,21 +40,25 @@ async def domain_intel(url: str) -> dict:
     if not settings.BRIGHTDATA_API_TOKEN:
         return out
 
-    # WHOIS-ish age signal via a public whois page fetch.
-    try:
-        html = await _request(settings.BRIGHTDATA_UNLOCKER_ZONE, f"https://who.is/whois/{registrable}")
-        m = re.search(r"(Creat|Register)\w*\s*Date[:\s]+([0-9]{4}-[0-9]{2}-[0-9]{2})", html, re.IGNORECASE)
-        if m:
-            out["created_date"] = m.group(2)
-    except Exception:
-        pass
+    async def whois_age():
+        try:
+            html = await _request(settings.BRIGHTDATA_UNLOCKER_ZONE, f"https://who.is/whois/{registrable}")
+            m = re.search(r"(Creat|Register)\w*\s*Date[:\s]+([0-9]{4}-[0-9]{2}-[0-9]{2})", html, re.IGNORECASE)
+            return ("created_date", m.group(2)) if m else None
+        except Exception:
+            return None
 
-    # This-week cross-reference: does the web associate this URL with "scam"?
-    try:
-        serp = await _request(settings.BRIGHTDATA_SERP_ZONE, f'https://www.google.com/search?q="{registrable}"+scam', fmt="raw")
-        out["scam_mentions"] = len(re.findall(r"scam|phishing|fraud", serp, re.IGNORECASE))
-    except Exception:
-        pass
+    async def scam_mentions():
+        try:
+            serp = await _request(settings.BRIGHTDATA_SERP_ZONE, f'https://www.google.com/search?q="{registrable}"+scam')
+            return ("scam_mentions", len(re.findall(r"scam|phishing|fraud", serp, re.IGNORECASE)))
+        except Exception:
+            return None
+
+    # Run both lookups concurrently so Bright Data adds ~10s worst case, not 2×.
+    for r in await asyncio.gather(whois_age(), scam_mentions()):
+        if r:
+            out[r[0]] = r[1]
 
     return out
 

@@ -48,14 +48,18 @@ class Settings(BaseSettings):
     LLM_API_KEY: str = ""
     LLM_MODEL_BRAIN: str = "kimi-k2.6"
     LLM_MODEL_TRIAGE: str = "kimi-k2.6"
-    LLM_TEMPERATURE: float = 1.0  # kimi-k2.6 requires 1; lower values 400 on this model
-    DEFAULT_LANGUAGES: str = "en,zh"
+    # kimi-k2.6 "thinking" mode is accurate but slow (~50s); off → ~4s. Off by default for the demo.
+    # When off, the model requires temperature 0.6; when on, it requires 1.0.
+    LLM_THINKING: bool = False
+    DEFAULT_LANGUAGES: str = "en"  # one active language at a time; switch by asking the bot
     CHINESE_VARIANT: str = "simplified"  # simplified | traditional
 
     # --- Autonomous email monitoring ---
     EMAIL_IMAP_HOST: str = "imap.gmail.com"
     EMAIL_IMAP_USER: str = ""
     EMAIL_IMAP_PASSWORD: str = ""
+    EMAIL_FOLDERS: str = "INBOX,[Gmail]/Spam"  # also scan Spam — scams often get filed there
+    EMAIL_MAX_PER_POLL: int = 10               # cap processed per poll (avoid a spam backlog flood)
     EMAIL_POLL_SECONDS: int = 20
     EMAIL_OWNER_ELDER_ID: str = "1"
     ALERT_THRESHOLD: str = "high"  # high | medium | low
@@ -85,6 +89,10 @@ class Settings(BaseSettings):
     @property
     def admin_id(self) -> int | None:
         return int(self.ADMIN_TELEGRAM_ID) if self.ADMIN_TELEGRAM_ID.strip().isdigit() else None
+
+    @property
+    def email_folders(self) -> list[str]:
+        return [f.strip() for f in self.EMAIL_FOLDERS.split(",") if f.strip()] or ["INBOX"]
 
     @property
     def email_owner_elder_id(self) -> int | None:

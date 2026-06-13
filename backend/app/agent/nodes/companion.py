@@ -36,8 +36,10 @@ async def run(state: dict) -> dict:
     memory = state.get("memory") or "(no memory yet — this may be a new person)"
     who = (state.get("source") or {}).get("who") or "friend"
     pref = state.get("pref_languages") or settings.default_languages
+    active = (pref[0] if pref else "en")
+    lang_name = {"en": "English", "zh": "Chinese (简体中文)", "ms": "Malay", "ta": "Tamil"}.get(active, "English")
     user = (
-        f"PERSON: {who}\nPREFERRED LANGUAGES: {pref}\n\n"
+        f"PERSON: {who}\nACTIVE REPLY LANGUAGE: {lang_name} — reply ONLY in this language.\n\n"
         f"MEMORY.md:\n{memory}\n\n"
         f"THEIR MESSAGE:\n{text}\n\n"
         "Respond as their companion, then return the JSON object."

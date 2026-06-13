@@ -17,8 +17,8 @@ class User(SQLModel, table=True):
     telegram_chat_id: int | None = Field(default=None, index=True)
     telegram_user_id: int | None = Field(default=None, index=True)
     name: str | None = None
-    # output-language preference: both(en+zh) | en | zh | ms | ta — changed in natural language
-    language: str = "both"
+    # active reply language (one at a time): en | zh | ms | ta — changed in natural language
+    language: str = "en"
     role: str = "both"  # elder | guardian | both
     verified: bool = False
     is_admin: bool = False
