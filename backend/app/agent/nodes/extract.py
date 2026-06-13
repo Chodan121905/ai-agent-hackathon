@@ -9,7 +9,7 @@ from __future__ import annotations
 from app.agent.nodes.intake import route_by_modality  # re-export for graph wiring
 from app.agent.util import find_urls
 from app.core.config import settings
-from app.integrations import brightdata, daytona, sensenova, videodb_stt, whisper_stt
+from app.integrations import brightdata, daytona, ocr as ocr_client, videodb_stt, whisper_stt
 
 __all__ = ["route_by_modality", "ocr", "transcribe", "link_intel"]
 
@@ -18,7 +18,7 @@ async def ocr(state: dict) -> dict:
     img = state.get("image_bytes")
     if not img:
         return {}
-    text = await sensenova.ocr(img)
+    text = await ocr_client.ocr(img)
     if not text:
         return {}
     updates: dict = {"extracted_text": [text]}

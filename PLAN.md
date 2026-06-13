@@ -92,7 +92,7 @@ excluded from the demo build.
    ┌──────────────────────── LangGraph multi-phase agent (one brain) ─────────────────────────────┐
    │  1 intake/normalize  → modality + language                                                    │
    │  2 route (cond. edge)                                                                          │
-   │  3 extract (parallel): image→SenseNova U1 (Kimi-vision fallback) · voice→Whisper(/VideoDB)     │
+   │  3 extract (parallel): image→TokenRouter OCR (Kimi-vision fallback) · voice→Whisper(/VideoDB)  │
    │                        · link→Bright Data(+Daytona) · EMAIL→sender forensics · text→passthrough│
    │  4 analyze ∥ verify  (the swarm): Kimi k2.6 tactic detection  +  tool/forensics verification   │
    │  5 synthesize        → strict Verdict JSON: bilingual EN+中文, confidence %, named tactics, why │
@@ -126,7 +126,7 @@ excluded from the demo build.
 | Email intake | **IMAP** via `imaplib` (stdlib) + stdlib `email` | Poll a real Gmail inbox via **App Password**. IMAP IDLE = optional "instant" upgrade. |
 | Email forensics | **stdlib `email` + `tldextract` + `idna`** | Header parsing, domain extraction, homoglyph/punycode + lookalike scoring (§7.3). |
 | STT | **faster-whisper** (primary) / **VideoDB** (sponsor path) | VideoDB lacks Malay & Tamil — see §15. |
-| Screenshot OCR | **SenseNova U1** (sponsor) / **Kimi-vision** (fallback) | SenseNova also generates the scam-of-week card. |
+| Screenshot OCR | **TokenRouter** vision model / **Kimi-vision** (fallback) | OCR via TokenRouter (`OCR_MODEL`); Kimi-vision when unset. |
 | Link intel | **Bright Data** + **Daytona** (optional) | Domain age + brand-lookalike + this-week cross-ref. |
 | Process model | **one process** (uvicorn + lifespan tasks) | API + bot polling + email poller in a single `python -m app`. |
 
@@ -158,7 +158,7 @@ ai-agent-hackathon/
 │   │   ├── agent/
 │   │   │   ├── state.py · graph.py · prompts.py · llm.py · verdict.py
 │   │   │   └── nodes/  intake · extract · intent · analyze · verify · synthesize · decide
-│   │   ├── integrations/  sensenova.py · whisper_stt.py · videodb_stt.py · brightdata.py · daytona.py
+│   │   ├── integrations/  ocr.py · whisper_stt.py · videodb_stt.py · brightdata.py · daytona.py
 │   │   │                  · email_forensics.py   # impostor/spoofed-sender detection (§7.3)
 │   │   └── services/  check_service.py · guardian_service.py · alert_service.py · intelligence_service.py
 │   │                  · member_service.py   # verified-allowlist logic (§11)
@@ -405,9 +405,9 @@ risk). Never auto-open links except inside Daytona/Bright Data.
 - **Endpoint:** `POST https://api.brightdata.com/request` with `{zone, url, format}` (Unlocker `raw` / SERP `json`).
 - **Use:** WHOIS-page fetch → domain age; SERP brand → canonical domain (feeds the §7.3 brand-domain check); SERP `"<url>" scam` → this-week cross-ref. **Treat fetched HTML as hostile.**
 
-### SenseNova U1 — screenshot OCR + scam-of-week card · 🟡 (fallback: Kimi-vision) · confidence: medium
-- Hosted OpenAI-compatible `https://token.sensenova.cn/v1` (free beta) **or** self-host Apache-2.0 weights via vLLM-Omni.
-- **⚠** exact hosted "U1" model id unconfirmed → keep `SENSENOVA_BASE_URL` + model configurable; **Kimi-vision** is the OCR fallback. Unique value = the scam-of-week **card image**.
+### TokenRouter — screenshot OCR (vision) · 🟡 (fallback: Kimi-vision) · confidence: medium
+- OCR runs through a **vision-capable model on TokenRouter** (`TOKENROUTER_BASE_URL` + `OCR_MODEL`, OpenAI-compatible). Implemented in `app/integrations/ocr.py`.
+- If `TOKENROUTER_API_KEY`/`OCR_MODEL` are unset, OCR falls back to the main LLM's vision (**Kimi k2.6**) — so screenshots still work with just the Kimi key. *(SenseNova was removed.)*
 
 ### VideoDB — voice transcription · 🟡 (primary: Whisper) · confidence: medium
 - `pip install videodb`; `connect → upload → audio.generate_transcript → get_transcript_text`. **⚠ no Malay/Tamil** → **Whisper is primary** (§15). VideoDB stays for EN/ZH + future video search.
@@ -419,8 +419,9 @@ risk). Never auto-open links except inside Daytona/Bright Data.
 - `pip install daytona`; `create() → sandbox.process.exec("curl -sSIL …") → delete()` in `finally`. ~$200 starter + hackathon credits.
 - **When it fires:** whenever a link reaches the `link_intel` node — either a verified member **forwards/pastes a link to the bot**, or a **scam email contains one** — the agent opens it in a fresh, disposable Daytona sandbox to resolve redirects/final URL/content-type, then deletes the sandbox. Keeps the suspicious page off the elder's device and our host. Bright Data adds the domain/brand signals; Daytona is the safe "open it and look" step.
 
-### TokenRouter — LLM gateway · 🟡 (off by default) · confidence: medium
-- `https://api.tokenrouter.io/v1` (OpenAI-compatible), keys `tr_…`, modes `auto:cost|fast|balance|quality`. **BYO provider keys**. Not OpenRouter. Flip on via `make_llm()` env.
+### TokenRouter — LLM gateway (optional) + OCR backend · 🟡 · confidence: medium
+- `https://api.tokenrouter.io/v1` (OpenAI-compatible), keys `tr_…`, modes `auto:cost|fast|balance|quality`. **BYO provider keys**. Not OpenRouter.
+- Used as the **OCR vision backend** (above). Can also serve as the main LLM gateway via a `make_llm()` env flip (off by default).
 
 ---
 
@@ -483,7 +484,7 @@ Telegram is **not** a webhook endpoint — the bot uses long polling (§11).
 - **Two modes, both always on.** (1) **Interactive** — a verified member can **send or forward anything** (a link they're unsure about, typed text, a screenshot, a voice note) and the bot **analyzes it and replies** with the bilingual verdict. They can literally just paste a suspicious link and get an answer. (2) **Autonomous** — independently and at the same time, the email monitor scans the inbox and **pushes warnings on its own**, with no message from anyone. The same process runs both.
 - **Intake mapping (interactive channel):** the handler accepts **any** message from a verified member —
   - text → `message.text`
-  - screenshot → `message.photo[-1]` → `get_file` → SenseNova/Kimi-vision
+  - screenshot → `message.photo[-1]` → `get_file` → TokenRouter OCR / Kimi-vision
   - voice → `message.voice` (OGG) → ffmpeg → **Whisper transcribes it to text**, which feeds the agent — so a spoken scam to check *and* a spoken command like "change to English" are both understood
   - **link** → URL entities (`url` slice / `text_link` → `entity.url`; captions use `caption_entities`) → routed to the `link_intel` node: **Bright Data** domain/brand/this-week checks **+ the link is opened safely inside a fresh Daytona sandbox** (`curl -sSIL` resolves the redirect chain, final URL, and content-type without touching the user's device) → bilingual verdict reply.
 - **Guardian pairing** (a bot can't message someone who never `/start`-ed it): elder `/invite` → 6-char code; guardian `/start` then `/guardian <code>` → capture guardian `chat_id`, link, status `active`.
@@ -552,9 +553,12 @@ EMAIL_POLL_SECONDS=20
 EMAIL_OWNER_ELDER_ID=1                          # which elder this inbox belongs to (single-inbox demo)
 ALERT_THRESHOLD=high                            # alert family when is_scam and risk_level >= this
 
+# --- OCR via TokenRouter (falls back to Kimi-vision) ---
+TOKENROUTER_API_KEY=
+TOKENROUTER_BASE_URL=https://api.tokenrouter.io/v1
+OCR_MODEL=
+
 # --- Sponsors (leave blank to use fallbacks) ---
-SENSENOVA_API_KEY=
-SENSENOVA_BASE_URL=https://token.sensenova.cn/v1
 VIDEO_DB_API_KEY=
 BRIGHTDATA_API_TOKEN=
 BRIGHTDATA_SERP_ZONE=serp_api1
@@ -577,7 +581,7 @@ Backend-first; riskiest-thing-first; each ends with a verifiable check.
 - **M2 — Real Telegram bot + verified gate + language switch.** Real token, long polling in lifespan, `/verify <code>` gate, text handler → `check_service` → bilingual reply. Intent step detects natural-language language requests and saves the member's preference. ✅ Only verified members get a verdict; strangers refused; "reply in English only" changes the output language.
 - **M3 — Family loop.** `guardian_links`, `/invite` + `/guardian <code>`, `alert_service` fires on high risk. ✅ High-risk forward pings the guardian (bilingual).
 - **M4 — 📧 Autonomous email + impostor detection (the headline).** IMAP poller on the real Gmail; `email_forensics` (display-name/lookalike/punycode/SPF-DKIM/etc.); alert family. ✅ Send a phishing email to the inbox → ~20s later the family phone buzzes with a bilingual alert naming the sender + why + confidence %.
-- **M5 — Screenshots.** `ocr`: SenseNova (Kimi-vision fallback). ✅ Forwarded image → verdict.
+- **M5 — Screenshots.** `ocr`: TokenRouter vision model (Kimi-vision fallback). ✅ Forwarded image → verdict.
 - **M6 — Links (interactive + safe-open).** `link_intel`: Bright Data **+ Daytona safe-open**; `verify` ToolNode. ✅ A member pastes/forwards a link to the bot → it's opened in a Daytona sandbox and the verdict cites domain age/impersonation/redirects.
 - **M7 — Voice.** `transcribe`: Whisper, ffmpeg OGG→mp3 → text fed to the agent. ✅ A voice note is transcribed and understood → verdict; a spoken "change to English" also works.
 - **M8 — Trends API.** `intelligence/trends` + `stats`. ✅ Endpoint returns trending scams.
@@ -597,7 +601,7 @@ Backend-first; riskiest-thing-first; each ends with a verifiable check.
 4. **Impostor detection is deterministic first.** Header forensics produce hard signals (auth fail, display mismatch, lookalike) independent of the LLM; the LLM explains them in plain bilingual language. This is robust even if wording is clean.
 5. **Gmail via App Password**, not OAuth — one-time setup (§7.4), works with plain IMAP. Use a throwaway account.
 6. **Bilingual is enforced in the schema** (separate `_en`/`_zh` fields), so the model can't "forget" a language.
-7. **Voice STT: Whisper primary** (VideoDB lacks Malay/Tamil). **SenseNova hosted id unconfirmed** → Kimi-vision OCR fallback. **Kimi has no free tier** → `make_llm()` is one env flip.
+7. **Voice STT: Whisper primary** (VideoDB lacks Malay/Tamil). **OCR via TokenRouter** vision model → Kimi-vision fallback if unset. **Kimi has no free tier** → `make_llm()` is one env flip.
 8. **Hostile content** (email HTML, fetched pages) → strip + sanitize before any LLM; open links only in Daytona/Bright Data.
 
 ---
@@ -635,7 +639,7 @@ Prereqs: Python 3.12+, **ffmpeg** on PATH (voice), the real Telegram bot token, 
 - [ ] The family loop also fires on a forwarded high-risk item.
 - [ ] `GET /api/v1/intelligence/trends` returns aggregated trending scams from SQLite.
 - [ ] `/openapi.json` exported; TS + Dart clients generate cleanly (web + Flutter readiness proven).
-- [ ] ≥3 sponsors integrated meaningfully (Kimi + SenseNova + Bright Data minimum).
+- [ ] ≥3 sponsors integrated meaningfully (Kimi + Bright Data + Daytona/TokenRouter minimum).
 
 ---
 
@@ -649,7 +653,7 @@ Prereqs: Python 3.12+, **ffmpeg** on PATH (voice), the real Telegram bot token, 
 **Confirmed decisions (locked 2026-06-13):**
 - **Scam email alerts go to family AND the elder** (`ALERT_ELDER_TOO=true`).
 - Bilingual = **English + Simplified Chinese (简体中文)** (`CHINESE_VARIANT=simplified`).
-- Sponsor scope: **all six wired** (Kimi load-bearing; Bright Data / SenseNova / Daytona /
-  VideoDB / TokenRouter behind real clients with built-in fallbacks, so the app boots and
-  runs even with no sponsor keys but Kimi).
+- Sponsor scope: Kimi load-bearing; Bright Data / Daytona / VideoDB / **TokenRouter (now the
+  OCR backend)** behind real clients with built-in fallbacks, so the app boots and runs even
+  with no sponsor keys but Kimi. **SenseNova was removed** (OCR moved to TokenRouter, Kimi-vision fallback).
 - Build scope: **full M0–M10** implemented in `backend/`.

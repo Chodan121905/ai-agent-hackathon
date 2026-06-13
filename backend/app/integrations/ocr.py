@@ -1,8 +1,9 @@
-"""Screenshot OCR via SenseNova U1 (sponsor), with a Kimi-vision fallback (PLAN §8).
+"""Screenshot OCR via TokenRouter (OpenAI-compatible vision), with a Kimi-vision fallback.
 
-Both are OpenAI-compatible vision chat endpoints, so we send the image as a data-URI.
-The exact hosted "U1" model id is configurable (SENSENOVA_MODEL); if SenseNova is not
-configured or errors, we fall back to the Kimi brain's vision capability.
+When a member forwards a photo (fake bank login, phishing chat, an SMS picture), this
+extracts the text so the agent can analyze it. Primary backend is a vision model on
+TokenRouter (OCR_MODEL); if TokenRouter isn't configured, it falls back to the main
+LLM's vision (Kimi k2.6). Returns "" if no vision backend is available.
 """
 from __future__ import annotations
 
@@ -48,18 +49,19 @@ async def _vision_ocr(base_url: str, api_key: str, model: str, image_bytes: byte
 
 
 async def ocr(image_bytes: bytes) -> str:
-    """Read text out of a screenshot. Returns "" if no OCR backend is available."""
-    if settings.SENSENOVA_API_KEY:
+    # primary: TokenRouter vision model
+    if settings.TOKENROUTER_API_KEY and settings.OCR_MODEL:
         try:
             return await _vision_ocr(
-                settings.SENSENOVA_BASE_URL,
-                settings.SENSENOVA_API_KEY,
-                settings.SENSENOVA_MODEL,
+                settings.TOKENROUTER_BASE_URL,
+                settings.TOKENROUTER_API_KEY,
+                settings.OCR_MODEL,
                 image_bytes,
             )
         except Exception:
             pass  # fall through to Kimi-vision
 
+    # fallback: the main LLM's vision (Kimi k2.6)
     if settings.llm_configured:
         try:
             return await _vision_ocr(
@@ -72,12 +74,3 @@ async def ocr(image_bytes: bytes) -> str:
             pass
 
     return ""
-
-
-async def scam_of_week_card(prompt: str) -> str | None:
-    """Optional: SenseNova image generation for the weekly card. Returns a URL or None.
-
-    Image generation API shape is provider-specific and not load-bearing for the demo,
-    so this is left as a documented no-op when not configured.
-    """
-    return None

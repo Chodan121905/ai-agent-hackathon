@@ -37,7 +37,7 @@ pip install -e ".[dev]"      # pytest + ruff
 | `LLM_API_KEY` | Kimi k2.6 key (or TokenRouter `tr_...`) | platform.kimi.ai |
 | `EMAIL_IMAP_USER` / `EMAIL_IMAP_PASSWORD` | A **throwaway** Gmail + 16-char App Password | see PLAN.md §7.4 |
 
-Sponsor keys (`SENSENOVA_*`, `VIDEO_DB_*`, `BRIGHTDATA_*`, `DAYTONA_*`) are optional — each
+Sponsor keys (`TOKENROUTER_*`/`OCR_MODEL`, `VIDEO_DB_*`, `BRIGHTDATA_*`, `DAYTONA_*`) are optional — each
 integration has a built-in fallback, so the app boots and runs without them.
 
 ### Connecting Gmail (App Password — do once)

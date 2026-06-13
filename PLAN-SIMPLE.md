@@ -119,7 +119,7 @@ Every "team member" is a real piece of technology (several are hackathon sponsor
 | 🚪 **Front desk** | **Telegram bot** | The chat contact people forward things to, and where answers/alerts come from. |
 | 📬 **Inbox watcher** | **Email checker (IMAP)** | Keeps peeking at the email inbox, flags any new scam email on its own, and checks whether the sender address is a **fake pretending to be a real company**. |
 | 🧠 **Expert detective** | **Kimi k2.6** (an AI) | The brain — decides scam or not, names the trick, writes the simple explanation. |
-| 👀 **Reader** | **SenseNova U1** (an AI) | Reads text *inside* a screenshot. Also draws the weekly "scam to watch" poster. |
+| 👀 **Reader** | **TokenRouter** (a vision AI) | Reads text *inside* a screenshot (falls back to Kimi's own eyes if not set up). |
 | 👂 **Listener** | **Whisper** (backup: **VideoDB**) | Turns a spoken voice note into written words. |
 | 🕵️ **Investigator** | **Bright Data** | Looks up a suspicious link: how old, is it faking a real brand, has it been reported. |
 | 🧪 **Safe room** | **Daytona** | A sealed, throwaway space to open a dangerous link safely. |
@@ -206,7 +206,7 @@ These were specifically requested, and the plan now guarantees them:
 
 - **Backend** — the engine room you don't see; does the actual work.
 - **Frontend** — the screens you *do* see (website, phone app).
-- **AI model** — a program trained to understand language, images, or speech (Kimi, SenseNova, Whisper).
+- **AI model** — a program trained to understand language, images, or speech (Kimi, Whisper).
 - **Bot** — an automated account in a chat app that replies for us.
 - **Inbox watcher / IMAP** — the part that keeps checking the email inbox for new mail.
 - **Verdict** — the answer card: a 🔴/🟡/🟢 light, the trick used, and what to do.

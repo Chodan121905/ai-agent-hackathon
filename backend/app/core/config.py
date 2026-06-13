@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,6 +16,16 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
+
+    @field_validator("*", mode="before")
+    @classmethod
+    def _clean_str(cls, v):
+        # Defends against .env footguns: surrounding whitespace, and an inline "# comment"
+        # left on an otherwise-empty value (python-dotenv keeps it as the value).
+        if isinstance(v, str):
+            s = v.strip()
+            return "" if s.startswith("#") else s
+        return v
 
     # --- App ---
     ENV: str = "dev"
@@ -49,10 +60,12 @@ class Settings(BaseSettings):
     ALERT_THRESHOLD: str = "high"  # high | medium | low
     ALERT_ELDER_TOO: bool = True   # locked decision: alert family AND the elder
 
+    # --- OCR (screenshot reading) via TokenRouter; falls back to Kimi-vision ---
+    TOKENROUTER_API_KEY: str = ""
+    TOKENROUTER_BASE_URL: str = "https://api.tokenrouter.io/v1"
+    OCR_MODEL: str = ""  # a vision-capable model id on TokenRouter; blank → Kimi-vision fallback
+
     # --- Sponsors ---
-    SENSENOVA_API_KEY: str = ""
-    SENSENOVA_BASE_URL: str = "https://token.sensenova.cn/v1"
-    SENSENOVA_MODEL: str = "SenseNova-U1"
     VIDEO_DB_API_KEY: str = ""
     BRIGHTDATA_API_TOKEN: str = ""
     BRIGHTDATA_SERP_ZONE: str = "serp_api1"
